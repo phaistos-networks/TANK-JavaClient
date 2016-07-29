@@ -20,7 +20,9 @@ What are we talking about ? Tank ? is that some kind of armored vehicle game ?
 Sounds pretty cool.  
 
 ## Usage ##
-```System.exit(666);```
+```
+System.exit(666);
+```
 
 ## Status ##
 It doesn't do shit.
