@@ -3,8 +3,8 @@ Java Client for TANK
 
 ## Disclaimer ##
 Do not use this client in production !!  
-If you do decide to give it a spin, please remember that:
-1. It _will_ burn your toast in the morning
+If you do decide to give it a spin, please remember that:  
+1. It _will_ burn your toast in the morning  
 2. It _will_ cause a total irrecoverable outage on your neighbour's wide screen tv  
 3. Your morning coffee will taste worse. However your evening tea might actually taste "fuller"...  
 
