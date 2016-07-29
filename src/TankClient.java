@@ -18,7 +18,7 @@ class TankClient implements Runnable {
                                 try {
                                         client = new Socket(tankHost, tankPort);
                                 } catch (Exception e) {
-                                        System.out.println(e.getCause());
+					e.printStackTrace();
                                         Thread.sleep(100);
                                         continue;
                                 }
@@ -41,8 +41,10 @@ class TankClient implements Runnable {
 				byte[] ba;
 				
 				if ( !getPing(bis) ) {
-					System.err.println("No Ping Received");
+					System.err.println("ERROR: No Ping Received");
 					System.exit(1);
+				} else {
+					System.out.println(" + PING OK");
 				}
 
 				FetchTopic topics[] = new FetchTopic[1];
@@ -51,27 +53,28 @@ class TankClient implements Runnable {
 				topics[0] = new FetchTopic("foo", 0l, 10l, 1400l);
 				//topics[1] = new FetchTopic("foo", 0l, 0l, 1400l);
 
-        		//	fetchReq(long clientVersion, long reqID, String clientId, long maxWait, long minBytes, FetchTopic[] topics)
-				byte req[] = fetchReq(0l, 5l, "java", 0l, 0l, topics);
-
-				OutputStream socketOutputStream = client.getOutputStream();
-				socketOutputStream.write(req);
+				byte req[] = fetchReq(0l, 0l, "java", 0l, 0l, topics);
 				byte rsize[] = (gandalf.serialize(req.length-5, 32));
 				for (int i=0; i<4; i++) {
 					req[i+1] = rsize[i];
 				}
+
+				OutputStream socketOutputStream = client.getOutputStream();
+				socketOutputStream.write(req);
+/*
 				for (byte b : req)
 					System.out.format("%d%c ", b, b);
 				System.out.println();
-/*
 */
+				Thread.sleep(100);
+
+
 				getMessage(bis);
                                 client.close();
 				break;
                         }
                 } catch (Exception e) {
-                        System.err.println(e.getCause());
-			e.printStackTrace(System.err);
+			e.printStackTrace();
                         System.exit(0);
                 }
         }
@@ -104,10 +107,10 @@ class TankClient implements Runnable {
 
 			byte ba[] = new byte[av];
 			bis.read(ba, 0, av);
+/*
 			for (byte b : ba)
 				System.out.format("%d ", b);
 			System.out.println();
-/*
 */
 
 			ByteManipulator input = new ByteManipulator(ba);
