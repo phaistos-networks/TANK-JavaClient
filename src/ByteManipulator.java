@@ -113,6 +113,10 @@ class ByteManipulator {
                 return out;
         }
 
+	public int getRemainingLength() {
+		return input.length - offset;
+	}
+
 	private byte input[];
 	private int offset;
 }

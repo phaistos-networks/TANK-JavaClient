@@ -57,7 +57,7 @@ class TestApp {
 			}
 		}
 			
-		TankClient tc = new TankClient("localhost", 11011, "foo", 0);
+		TankClient tc = new TankClient(host, port, topic, partition, id);
                 new Thread(tc).start();
 	}
 }

@@ -3,43 +3,44 @@ import java.io.*;
 import java.nio.*;
 
 class TankClient implements Runnable {
-        public TankClient(String tHost, int tPort, String tTopic, int tPartition) {
+        public TankClient(String tHost, int tPort, String tTopic, int tPartition, int rSeqNum) {
                 tankHost = tHost;
                 tankPort = tPort;
                 tankTopic = tTopic;
                 tankPartition = tPartition;
+		reqSeqNum = rSeqNum;
         }
 
         public void run() {
                 try {
                         clientSocket = new DatagramSocket();
                         Socket client;
-                        while (true) {
-                                try {
-                                        client = new Socket(tankHost, tankPort);
-                                } catch (Exception e) {
+			while (true) {
+				try {
+					client = new Socket(tankHost, tankPort);
+				} catch (Exception e) {
 					e.printStackTrace();
-                                        Thread.sleep(100);
-                                        continue;
-                                }
-                                //client.setSoTimeout(1000);
-                                client.setTcpNoDelay(true);
-                                client.setKeepAlive(true);
-                                client.setReuseAddress(true);
-                                System.out.println("Connected to "+ client.getRemoteSocketAddress()
-                                                + "\n + recv buffer size: "+ client.getReceiveBufferSize()
-                                                + "\n + send buffer size: "+ client.getSendBufferSize()
-                                                + "\n + timeout: " + client.getSoTimeout()
-                                                + "\n + soLinger: " + client.getSoLinger()
-                                                + "\n + nodelay: " + client.getTcpNoDelay()
-                                                + "\n + keepalive: " + client.getKeepAlive()
-                                                + "\n + oobinine: " + client.getOOBInline()
-                                                + "\n + reuseAddress: " + client.getReuseAddress());
+					Thread.sleep(100);
+					continue;
+				}
+				//client.setSoTimeout(1000);
+				client.setTcpNoDelay(true);
+				client.setKeepAlive(true);
+				client.setReuseAddress(true);
+				System.out.println("Connected to "+ client.getRemoteSocketAddress()
+						+ "\n + recv buffer size: "+ client.getReceiveBufferSize()
+						+ "\n + send buffer size: "+ client.getSendBufferSize()
+						+ "\n + timeout: " + client.getSoTimeout()
+						+ "\n + soLinger: " + client.getSoLinger()
+						+ "\n + nodelay: " + client.getTcpNoDelay()
+						+ "\n + keepalive: " + client.getKeepAlive()
+						+ "\n + oobinine: " + client.getOOBInline()
+						+ "\n + reuseAddress: " + client.getReuseAddress());
 
-                                BufferedInputStream bis = new BufferedInputStream(client.getInputStream());
+				BufferedInputStream bis = new BufferedInputStream(client.getInputStream());
 				gandalf = new ByteManipulator();
 				byte[] ba;
-				
+
 				if ( !getPing(bis) ) {
 					System.err.println("ERROR: No Ping Received");
 					System.exit(1);
@@ -50,7 +51,7 @@ class TankClient implements Runnable {
 				FetchTopic topics[] = new FetchTopic[1];
 
 				//FetchTopic(String name, long partitionID, long seqNum, long fetchSize)
-				topics[0] = new FetchTopic("foo", 0l, 10l, 1400l);
+				topics[0] = new FetchTopic(tankTopic, tankPartition, reqSeqNum, 1400l);
 				//topics[1] = new FetchTopic("foo", 0l, 0l, 1400l);
 
 				byte req[] = fetchReq(0l, 0l, "java", 0l, 0l, topics);
@@ -61,13 +62,6 @@ class TankClient implements Runnable {
 
 				OutputStream socketOutputStream = client.getOutputStream();
 				socketOutputStream.write(req);
-/*
-				for (byte b : req)
-					System.out.format("%d%c ", b, b);
-				System.out.println();
-*/
-				Thread.sleep(100);
-
 
 				getMessage(bis);
                                 client.close();
@@ -102,62 +96,89 @@ class TankClient implements Runnable {
 
 	private void getMessage(BufferedInputStream bis) {
 		try {
-			int av = bis.available();
-			System.out.println(" ++ available: "+av);
-
-			byte ba[] = new byte[av];
-			bis.read(ba, 0, av);
-/*
-			for (byte b : ba)
-				System.out.format("%d ", b);
-			System.out.println();
-*/
-
-			ByteManipulator input = new ByteManipulator(ba);
-			System.out.println(" ++ resp: " + input.deSerialize(8));
-			System.out.println(" ++ payload size: " + input.deSerialize(32));
-			System.out.println(" ++ header size: " + input.deSerialize(32));
-			System.out.println(" ++ reqid: "+ input.deSerialize(32));
-			System.out.format (" ++ topics count: %d\n", input.deSerialize(8));
-			short topicNameLength = (short)input.deSerialize(8);
-			System.out.println(" +++ Topic Name Length: "+ topicNameLength);
-			
-			System.out.print(" +++ Topic name: ");
-			for (byte b : input.get(topicNameLength))
-				System.out.format("%c", b);
-			System.out.println();
-
-			System.out.println(" +++ Total Partitions: "+ input.deSerialize(8));
-
-			long partitionID = input.deSerialize(16);
-			if (partitionID == 65535) {
-				System.out.println(" +++ Topic Not Found ");
-				return;
-			} else {
-				System.out.println(" ++++ Partition ID: " + partitionID);
-				byte error = (byte)input.deSerialize(8);
-				System.out.println(" ++++ Error: " + error);
-				if (error == 0xff) {
-					System.out.println(" +++++ Unknow Partition");
-					return;
+			while (true) {
+				int av = bis.available();
+				if (av == 0) {
+					Thread.sleep(10);
+					continue;
 				}
-				System.out.println(" ++++ First Seq # : " +input.deSerialize(64));
-				System.out.println(" ++++ High Watermark : " +input.deSerialize(64));
-				System.out.println(" ++++ Chunk Length : " +input.deSerialize(32));
-				System.out.println(" +++++ Bundle length : " +input.getVarInt());
+				System.out.println(" ++ available: "+av);
+
+				byte ba[] = new byte[av];
+				bis.read(ba, 0, av);
+				printMessage(ba);
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
+	private void printMessage(byte[] ba) {
+		ByteManipulator input = new ByteManipulator(ba);
+		System.out.println(" ++ resp: " + input.deSerialize(8));
+		System.out.println(" ++ payload size: " + input.deSerialize(32));
+		System.out.println(" ++ header size: " + input.deSerialize(32));
+		System.out.println(" ++ reqid: "+ input.deSerialize(32));
+		System.out.format (" ++ topics count: %d\n", input.deSerialize(8));
+		System.out.println(" ++ topic name: " + input.getStr8());
+		System.out.println(" +++ Total Partitions: "+ input.deSerialize(8));
+
+		long partitionID = input.deSerialize(16);
+		if (partitionID == 255) {
+			System.out.println(" +++ Topic Not Found ");
+			return;
+		} else {
+			System.out.println(" ++++ Partition ID: " + partitionID);
+			byte error = (byte)input.deSerialize(8);
+			System.out.println(" ++++ Error: " + error);
+			if (error == 0xff) {
+				System.out.println(" +++++ Unknow Partition");
+				return;
+			}
+			System.out.println(" ++++ First Seq # : " +input.deSerialize(64));
+			System.out.println(" ++++ High Watermark : " +input.deSerialize(64));
+			System.out.println(" ++++ Chunk Length : " +input.deSerialize(32));
+			long bundleLength = input.getVarInt();
+			while (bundleLength <= input.getRemainingLength()) {
+				System.out.println(" +++++ Bundle length : " +bundleLength);
+				System.out.println(" +++++ Remaining : " +input.getRemainingLength());
 				long flags = input.deSerialize(8);
 				long messageCount = (flags >> 2) &0xf;
 				long compressed = flags &0x3;
+				long sparse = (flags >> 6) &0xf;
 				System.out.println(" +++++ Bundle compressed : " +compressed);
+				System.out.println(" +++++ Bundle SPARSE : " +sparse);
 				if (messageCount == 0)
 					messageCount = input.getVarInt();
 				System.out.println(" +++++ Messages in set : " +messageCount);
+				long firstMessageNum = 0l;
+				long lastMessageNum = 0l;
+				if (sparse == 1) {
+					firstMessageNum = input.deSerialize(64);
+					System.out.println(" +++++ First message: "+ firstMessageNum);
+					if (messageCount > 1) {
+						lastMessageNum = input.getVarInt() + 1 + firstMessageNum;
+						System.out.println(" +++++ Last message: " + lastMessageNum);
+					}
+				}
 				long lastTimestamp = 0l;
+				long prevSeqNum = firstMessageNum;
+				long curSeqNum = 0;
 				for (int i = 0; i < messageCount; i++) {
 					flags = input.deSerialize(8);
+					if (sparse == 1) {
+						if (i == 0)
+							System.out.println(" ++++++ seq num: " + firstMessageNum);
+						else if (i!=0 && i!=messageCount-1) {
+							curSeqNum = (input.getVarInt() + 1 + prevSeqNum);
+							System.out.println(" ++++++ seq num: " + curSeqNum);
+							prevSeqNum = curSeqNum;
+						} else
+							System.out.println(" ++++++ seq num: " + lastMessageNum);
+					}
 					if ((flags & UseLastSpecifiedTS) == 0) 
 						lastTimestamp = input.deSerialize(64);
-						
+
 					if ((flags & HaveKey) == 1) {
 						System.out.println(" ++++++ We have a key and it is : " + input.getStr8());
 					}
@@ -168,11 +189,12 @@ class TankClient implements Runnable {
 						System.out.format("%c", b, b);
 					System.out.println();
 				}
+				if (input.getRemainingLength() > 0)
+					bundleLength = input.getVarInt();
 			}
-		} catch (Exception e) {
-			e.printStackTrace();
 		}
 	}
+
 
 	private boolean getPing(BufferedInputStream bis) {
 		try {
@@ -217,6 +239,7 @@ class TankClient implements Runnable {
         private int tankPort;
         private String tankTopic;
         private int tankPartition;
+	private int reqSeqNum;
         private DatagramSocket clientSocket;
 
 	public static final byte HaveKey = 1;
