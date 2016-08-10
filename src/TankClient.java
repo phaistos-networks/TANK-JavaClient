@@ -1,17 +1,21 @@
 import java.net.*;
 import java.io.*;
 import java.nio.*;
+import java.util.ArrayList;
+import java.util.logging.*;
 
-class TankClient implements Runnable {
-        public TankClient(String tHost, int tPort, String tTopic, int tPartition, int rSeqNum) {
+class TankClient {
+        public TankClient(String tHost, int tPort, String tTopic, int tPartition) {
                 tankHost = tHost;
                 tankPort = tPort;
                 tankTopic = tTopic;
                 tankPartition = tPartition;
-		reqSeqNum = rSeqNum;
+		chunkList = new ArrayList<Chunk>();
+		log = Logger.getLogger("tankClient");
         }
 
-        public void run() {
+        public ArrayList<TankMessage> get(int rSeqNum) {
+		ArrayList<TankMessage> messages = new ArrayList<TankMessage>();
                 try {
                         clientSocket = new DatagramSocket();
                         Socket client;
@@ -19,7 +23,7 @@ class TankClient implements Runnable {
 				try {
 					client = new Socket(tankHost, tankPort);
 				} catch (Exception e) {
-					e.printStackTrace();
+					log.log(Level.SEVERE, e.getMessage(), e);
 					Thread.sleep(100);
 					continue;
 				}
@@ -27,32 +31,28 @@ class TankClient implements Runnable {
 				client.setTcpNoDelay(true);
 				client.setKeepAlive(true);
 				client.setReuseAddress(true);
-				System.out.println("Connected to "+ client.getRemoteSocketAddress()
-						+ "\n + recv buffer size: "+ client.getReceiveBufferSize()
-						+ "\n + send buffer size: "+ client.getSendBufferSize()
-						+ "\n + timeout: " + client.getSoTimeout()
-						+ "\n + soLinger: " + client.getSoLinger()
-						+ "\n + nodelay: " + client.getTcpNoDelay()
-						+ "\n + keepalive: " + client.getKeepAlive()
-						+ "\n + oobinine: " + client.getOOBInline()
-						+ "\n + reuseAddress: " + client.getReuseAddress());
+				log.config("Connected to "+ client.getRemoteSocketAddress());
+				log.config(" + recv buffer size: "+ client.getReceiveBufferSize());
+				log.config(" + send buffer size: "+ client.getSendBufferSize());
+				log.config(" + timeout: " + client.getSoTimeout());
+				log.config(" + soLinger: " + client.getSoLinger());
+				log.config(" + nodelay: " + client.getTcpNoDelay());
+				log.config(" + keepalive: " + client.getKeepAlive());
+				log.config(" + oobinine: " + client.getOOBInline());
+				log.config(" + reuseAddress: " + client.getReuseAddress());
 
 				BufferedInputStream bis = new BufferedInputStream(client.getInputStream());
 				gandalf = new ByteManipulator();
-				byte[] ba;
 
 				if ( !getPing(bis) ) {
-					System.err.println("ERROR: No Ping Received");
+					log.severe("ERROR: No Ping Received");
 					System.exit(1);
 				} else {
-					System.out.println(" + PING OK");
+					log.fine("PING OK");
 				}
 
 				FetchTopic topics[] = new FetchTopic[1];
-
-				//FetchTopic(String name, long partitionID, long seqNum, long fetchSize)
-				topics[0] = new FetchTopic(tankTopic, tankPartition, reqSeqNum, 1400l);
-				//topics[1] = new FetchTopic("foo", 0l, 0l, 1400l);
+				topics[0] = new FetchTopic(tankTopic, tankPartition, rSeqNum, 9000l);
 
 				byte req[] = fetchReq(0l, 0l, "java", 0l, 0l, topics);
 				byte rsize[] = (gandalf.serialize(req.length-5, 32));
@@ -63,15 +63,32 @@ class TankClient implements Runnable {
 				OutputStream socketOutputStream = client.getOutputStream();
 				socketOutputStream.write(req);
 
-				getMessage(bis);
-                                client.close();
-				break;
-                        }
-                } catch (Exception e) {
-			e.printStackTrace();
-                        System.exit(0);
-                }
-        }
+				while (true) {
+					int av = bis.available();
+					if (av == 0) {
+						Thread.sleep(10);
+						continue;
+					}
+					log.finer("available: "+av);
+
+					byte ba[] = new byte[av];
+					bis.read(ba, 0, av);
+					messages =  getMessages(ba);
+
+					for (Handler h : log.getHandlers())
+						h.flush();
+
+					client.close();
+					return messages;
+				}
+			}
+		} catch (Exception e) {
+			log.log(Level.SEVERE, e.getMessage(), e);
+			System.exit(0);
+		}
+
+		return null;
+	}
 
 	private byte[] fetchReq(long clientVersion, long reqID, String clientId, long maxWait, long minBytes, FetchTopic[] topics) { 
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -88,111 +105,160 @@ class TankClient implements Runnable {
 				baos.write(topics[i].get());
 			
 		} catch (Exception e) {
-			e.printStackTrace();
+			log.log(Level.SEVERE, e.getMessage(), e);
 			System.exit(1);
 		}
 		return baos.toByteArray();
 	}
 
-	private void getMessage(BufferedInputStream bis) {
-		try {
-			while (true) {
-				int av = bis.available();
-				if (av == 0) {
-					Thread.sleep(10);
-					continue;
-				}
-				System.out.println(" ++ available: "+av);
 
-				byte ba[] = new byte[av];
-				bis.read(ba, 0, av);
-				printMessage(ba);
-			}
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-	}
-
-	private void printMessage(byte[] ba) {
+	private ArrayList<TankMessage> getMessages(byte[] ba) {
 		ByteManipulator input = new ByteManipulator(ba);
-		System.out.println(" ++ resp: " + input.deSerialize(8));
-		System.out.println(" ++ payload size: " + input.deSerialize(32));
-		System.out.println(" ++ header size: " + input.deSerialize(32));
-		System.out.println(" ++ reqid: "+ input.deSerialize(32));
-		System.out.format (" ++ topics count: %d\n", input.deSerialize(8));
-		System.out.println(" ++ topic name: " + input.getStr8());
-		System.out.println(" +++ Total Partitions: "+ input.deSerialize(8));
+		// Headers
+		byte resp = (byte)input.deSerialize(8);
+		long payloadSize = input.deSerialize(32);
+		long headerSize  = input.deSerialize(32);
+		long reqId = input.deSerialize(32);
+		long totalTopics = input.deSerialize(8);
+		log.fine("resp: " + resp);
+		log.fine("payload size: " + payloadSize);
+		log.fine("header size: " + headerSize);
+		log.fine("reqid: "+ reqId);
+		log.fine(String.format("topics count: %d\n", totalTopics));
 
-		long partitionID = input.deSerialize(16);
-		if (partitionID == 255) {
-			System.out.println(" +++ Topic Not Found ");
-			return;
-		} else {
-			System.out.println(" ++++ Partition ID: " + partitionID);
-			byte error = (byte)input.deSerialize(8);
-			System.out.println(" ++++ Error: " + error);
-			if (error == 0xff) {
-				System.out.println(" +++++ Unknow Partition");
-				return;
+		for (int t=0 ; t<totalTopics ; t++) {
+			String topic = input.getStr8();
+			long totalPartitions = input.deSerialize(8);
+			log.fine("topic name: " + topic);
+			log.fine("Total Partitions: "+ totalPartitions);
+
+			long partitionID = input.deSerialize(16);
+			if (partitionID == 65535) {
+				log.warning("Topic Not Found ");
+				return null;
+			} else {
+				// Partitions
+				for (int p=0 ; p < totalPartitions; p++) {
+					if (p != 0)
+						partitionID = input.deSerialize(16);
+
+					byte errorOrFlags = (byte)input.deSerialize(8);
+					log.fine("Partition ID: " + partitionID);
+					log.fine(String.format("ErrorOrFlags : %x\n", errorOrFlags));
+
+					if ((errorOrFlags & 0xFF) == 0xFF) {
+						log.warning("Unknown Partition\n ABORT ABORT");
+						continue;
+					}
+
+					long baseAbsSeqNum = 0l;
+					if ((errorOrFlags & 0xFF) != 0xFE) {
+						baseAbsSeqNum = input.deSerialize(64);
+						log.fine("Base Abs Seq Num : " +baseAbsSeqNum);
+					}
+
+					long highWaterMark = input.deSerialize(64);
+					long chunkLength = input.deSerialize(32);
+					log.fine("High Watermark : " +highWaterMark);
+					log.fine("Chunk Length : " +chunkLength);
+
+					if (errorOrFlags == 0x1) {
+						long firstAvailSeqNum = input.deSerialize(64);
+						log.warning("FirstAvailSeqNum : " + firstAvailSeqNum);
+						log.warning("Out of bounds, ABORT ABORT !!");
+						return null;
+					}
+					chunkList.add(new Chunk(topic, partitionID, errorOrFlags, baseAbsSeqNum, highWaterMark, chunkLength));
+				}
 			}
-			System.out.println(" ++++ First Seq # : " +input.deSerialize(64));
-			System.out.println(" ++++ High Watermark : " +input.deSerialize(64));
-			System.out.println(" ++++ Chunk Length : " +input.deSerialize(32));
-			long bundleLength = input.getVarInt();
-			while (bundleLength <= input.getRemainingLength()) {
-				System.out.println(" +++++ Bundle length : " +bundleLength);
-				System.out.println(" +++++ Remaining : " +input.getRemainingLength());
-				long flags = input.deSerialize(8);
+		}
+
+		//Chunks
+		ArrayList<TankMessage> messages = new ArrayList<TankMessage>();
+		for (Chunk c : chunkList) {
+			while (true) {
+				long bundleLength = input.getVarInt();
+				log.finer("Bundle length : " +bundleLength);
+				if (bundleLength > input.getRemainingLength()) {
+					log.finer("Bundle Incomplete (remaining bytes: "+input.getRemainingLength()+")");
+					return messages;
+				}
+				input.flushOffset();
+
+				byte flags = (byte)input.deSerialize(8);
 				long messageCount = (flags >> 2) &0xf;
 				long compressed = flags &0x3;
 				long sparse = (flags >> 6) &0xf;
-				System.out.println(" +++++ Bundle compressed : " +compressed);
-				System.out.println(" +++++ Bundle SPARSE : " +sparse);
+				log.finer("Bundle compressed : " +compressed);
+				log.finer("Bundle SPARSE : " +sparse);
+
 				if (messageCount == 0)
 					messageCount = input.getVarInt();
-				System.out.println(" +++++ Messages in set : " +messageCount);
+				log.finer("Messages in set : " +messageCount);
+
 				long firstMessageNum = 0l;
 				long lastMessageNum = 0l;
 				if (sparse == 1) {
 					firstMessageNum = input.deSerialize(64);
-					System.out.println(" +++++ First message: "+ firstMessageNum);
+					log.finer("First message: "+ firstMessageNum);
 					if (messageCount > 1) {
 						lastMessageNum = input.getVarInt() + 1 + firstMessageNum;
-						System.out.println(" +++++ Last message: " + lastMessageNum);
+						log.finer("Last message: " + lastMessageNum);
 					}
 				}
+
+				ByteManipulator chunkMsgs;
+				if (compressed == 1) {
+					log.finer("Snappy decompression");
+					try {
+						chunkMsgs = new ByteManipulator(input.unCompress(bundleLength-input.getOffset()));
+					} catch (IOException e) {
+						log.log(Level.SEVERE, e.getMessage(), e);
+						return null;
+					}
+				} else {
+					chunkMsgs = input;
+				}
+
 				long lastTimestamp = 0l;
 				long prevSeqNum = firstMessageNum;
 				long curSeqNum = 0;
 				for (int i = 0; i < messageCount; i++) {
-					flags = input.deSerialize(8);
+					log.finer("#### Message "+ (i+1) +" out of "+messageCount);
+					flags = (byte)chunkMsgs.deSerialize(8);
+					log.finer(String.format("flags : %d\n", flags));
 					if (sparse == 1) {
 						if (i == 0)
-							System.out.println(" ++++++ seq num: " + firstMessageNum);
+							log.finer("seq num: " + firstMessageNum);
 						else if (i!=0 && i!=messageCount-1) {
-							curSeqNum = (input.getVarInt() + 1 + prevSeqNum);
-							System.out.println(" ++++++ seq num: " + curSeqNum);
+							curSeqNum = (chunkMsgs.getVarInt() + 1 + prevSeqNum);
+							log.finer("seq num: " + curSeqNum);
 							prevSeqNum = curSeqNum;
 						} else
-							System.out.println(" ++++++ seq num: " + lastMessageNum);
+							log.finer("seq num: " + lastMessageNum);
+					} else
+						curSeqNum = c.baseAbsSeqNum+i;
+
+					if ((flags & UseLastSpecifiedTS) == 0) {
+						lastTimestamp = chunkMsgs.deSerialize(64);
+						log.finer("TimeStamp : " + lastTimestamp);
 					}
-					if ((flags & UseLastSpecifiedTS) == 0) 
-						lastTimestamp = input.deSerialize(64);
 
 					if ((flags & HaveKey) == 1) {
-						System.out.println(" ++++++ We have a key and it is : " + input.getStr8());
+						String key = chunkMsgs.getStr8();
+						log.finer("We have a key and it is : " + key);
 					}
-					long contentLength = input.getVarInt();
-					System.out.println(" ++++++ Content Length: " + contentLength);
-					byte data[] = data = input.get((int)contentLength);
-					for (byte b : data)
-						System.out.format("%c", b, b);
-					System.out.println();
+
+					long contentLength = chunkMsgs.getVarInt();
+					log.finer("Content Length: " + contentLength);
+
+					byte message[] = chunkMsgs.get((int)contentLength);
+					log.finest(new String(message));
+					messages.add(new TankMessage(c.topic, c.partitionID, curSeqNum, 0l, message));
 				}
-				if (input.getRemainingLength() > 0)
-					bundleLength = input.getVarInt();
 			}
 		}
+		return messages;
 	}
 
 
@@ -205,10 +271,27 @@ class TankClient implements Runnable {
 			if (b != 0x3) return false;
 			bis.skip(4);
 		} catch (Exception e) {
-			e.printStackTrace();
+			log.log(Level.SEVERE, e.getMessage(), e);
 			return false;
 		}
 		return true;
+	}
+
+	private class Chunk {
+		public Chunk(String t, long pid, byte eof, long basn, long hwm, long l) {
+			topic = t;
+			partitionID = pid;
+			errorOrFlags = eof;
+			baseAbsSeqNum = basn;
+			highWaterMark = hwm;
+			length = l;
+		}
+		String topic;
+		long partitionID;
+		byte errorOrFlags;
+		long highWaterMark;
+		long length;
+		long baseAbsSeqNum;
 	}
 
 	private class FetchTopic {
@@ -220,8 +303,8 @@ class TankClient implements Runnable {
 				baos.write(gandalf.serialize(partitionID, 16));
 				baos.write(gandalf.serialize(seqNum, 64));
 				baos.write(gandalf.serialize(fetchSize, 32));
-			} catch (IOException ioe) {
-				ioe.printStackTrace();
+			} catch (IOException e) {
+				log.log(Level.SEVERE, e.getMessage(), e);
 				System.exit(1);
 			}
 			topic = baos.toByteArray();
@@ -231,7 +314,7 @@ class TankClient implements Runnable {
 			return topic;
 		}
 
-		byte topic[];
+		private byte topic[];
 	}
 
 	private ByteManipulator gandalf;
@@ -241,6 +324,8 @@ class TankClient implements Runnable {
         private int tankPartition;
 	private int reqSeqNum;
         private DatagramSocket clientSocket;
+	private ArrayList<Chunk> chunkList;
+	private Logger log;
 
 	public static final byte HaveKey = 1;
 	public static final byte UseLastSpecifiedTS = 2;

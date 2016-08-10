@@ -1,5 +1,9 @@
+import java.nio.file.*;
+import java.io.*;
+import java.util.ArrayList;
+
 class TestApp {
-	public static void main(String[] args) {
+	public static void main(String[] args) throws Exception {
 
 		byte foo[] = new ByteManipulator().getStr8("Hello World");
 		String myStr8 = new ByteManipulator(foo).getStr8();
@@ -8,6 +12,25 @@ class TestApp {
 			System.exit(1);
 		}
 
+		long[] tVals = new long[7];
+		tVals[0] = 5l;
+		tVals[1] = 180l;
+		tVals[2] = 307l;
+		tVals[3] = 512l;
+		tVals[4] = 1790l;
+		tVals[5] = 23456l;
+		tVals[6] = 9990004l;
+		for (long testVal : tVals) {
+			Process p = Runtime.getRuntime().exec("./varint_generator "+testVal);
+			p.waitFor();
+			foo = Files.readAllBytes(new File("/tmp/FOOOO").toPath());
+			long varInt = new ByteManipulator(foo).getVarInt();
+			if (varInt != testVal) {
+				System.err.println("Varint conversion is broken");
+				System.err.println("Expected "+testVal+ " but got "+varInt);
+				System.exit(1);
+			}
+		}
 
 		String host = new String("localhost");
 		int port = 11011;
@@ -46,6 +69,7 @@ class TestApp {
 					}
 					break;
 				case "-id":
+				case "--id":
 					try {
 						id = Integer.parseInt(args[++i]);
 					} catch (NumberFormatException e) {
@@ -56,8 +80,10 @@ class TestApp {
 
 			}
 		}
-			
-		TankClient tc = new TankClient(host, port, topic, partition, id);
-                new Thread(tc).start();
+
+		TankClient tc = new TankClient(host, port, topic, partition);
+		ArrayList<TankMessage> myData = tc.get(id);
+		for (TankMessage tm : myData)
+			System.out.println(new String(tm.getMessage()));
 	}
 }
