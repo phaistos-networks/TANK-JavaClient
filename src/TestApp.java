@@ -37,7 +37,7 @@ class TestApp {
 		String topic = new String("foo");
 		int partition = 0;
 		String arg = new String();
-		int id = 0;
+		long id = 0;
 
 		for (int i = 0 ; i < args.length; i++) {
 			arg = args[i];
@@ -71,7 +71,7 @@ class TestApp {
 				case "-id":
 				case "--id":
 					try {
-						id = Integer.parseInt(args[++i]);
+						id = Long.parseLong(args[++i]);
 					} catch (NumberFormatException e) {
 						System.err.println(e.getCause());
 						System.exit(1);
@@ -82,8 +82,13 @@ class TestApp {
 		}
 
 		TankClient tc = new TankClient(host, port, topic, partition);
-		ArrayList<TankMessage> myData = tc.get(id);
-		for (TankMessage tm : myData)
-			System.out.println(new String(tm.getMessage()));
+		ArrayList<TankMessage> myData = new ArrayList<TankMessage>();
+		while (true) {
+			myData = tc.get(id);
+			for (TankMessage tm : myData) {
+				//System.out.println("seq " + tm.getSeqID() + ": " + new String(tm.getMessage()));
+				id = tm.getSeqID()+1;
+			}
+		}
 	}
 }

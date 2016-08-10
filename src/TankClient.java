@@ -10,20 +10,15 @@ class TankClient {
                 tankPort = tPort;
                 tankTopic = tTopic;
                 tankPartition = tPartition;
-		chunkList = new ArrayList<Chunk>();
 		log = Logger.getLogger("tankClient");
-        }
+		gandalf = new ByteManipulator();
 
-        public ArrayList<TankMessage> get(int rSeqNum) {
-		ArrayList<TankMessage> messages = new ArrayList<TankMessage>();
                 try {
-                        clientSocket = new DatagramSocket();
-                        Socket client;
 			while (true) {
 				try {
 					client = new Socket(tankHost, tankPort);
 				} catch (Exception e) {
-					log.log(Level.SEVERE, e.getMessage(), e);
+					log.log(Level.SEVERE, "ERROR opening socket", e);
 					Thread.sleep(100);
 					continue;
 				}
@@ -38,55 +33,88 @@ class TankClient {
 				log.config(" + soLinger: " + client.getSoLinger());
 				log.config(" + nodelay: " + client.getTcpNoDelay());
 				log.config(" + keepalive: " + client.getKeepAlive());
-				log.config(" + oobinine: " + client.getOOBInline());
+				log.config(" + oobinline: " + client.getOOBInline());
 				log.config(" + reuseAddress: " + client.getReuseAddress());
 
-				BufferedInputStream bis = new BufferedInputStream(client.getInputStream());
-				gandalf = new ByteManipulator();
-
-				if ( !getPing(bis) ) {
-					log.severe("ERROR: No Ping Received");
-					System.exit(1);
-				} else {
-					log.fine("PING OK");
-				}
-
-				FetchTopic topics[] = new FetchTopic[1];
-				topics[0] = new FetchTopic(tankTopic, tankPartition, rSeqNum, 9000l);
-
-				byte req[] = fetchReq(0l, 0l, "java", 0l, 0l, topics);
-				byte rsize[] = (gandalf.serialize(req.length-5, 32));
-				for (int i=0; i<4; i++) {
-					req[i+1] = rsize[i];
-				}
-
-				OutputStream socketOutputStream = client.getOutputStream();
-				socketOutputStream.write(req);
-
-				while (true) {
-					int av = bis.available();
-					if (av == 0) {
-						Thread.sleep(10);
-						continue;
-					}
-					log.finer("available: "+av);
-
-					byte ba[] = new byte[av];
-					bis.read(ba, 0, av);
-					messages =  getMessages(ba);
-
-					for (Handler h : log.getHandlers())
-						h.flush();
-
-					client.close();
-					return messages;
-				}
+				bis = new BufferedInputStream(client.getInputStream());
+				socketOutputStream = client.getOutputStream();
+				break;
+			}
+			if ( !getPing(bis) ) {
+				log.severe("ERROR: No Ping Received");
+				System.exit(1);
+			} else {
+				log.fine("PING OK");
 			}
 		} catch (Exception e) {
-			log.log(Level.SEVERE, e.getMessage(), e);
-			System.exit(0);
+			log.log(Level.SEVERE, "ERROR opening Streams", e);
+			System.exit(1);
+		}
+        }
+
+        public ArrayList<TankMessage> get(long rSeqNum) {
+		log.fine("Received get "+rSeqNum);
+		ArrayList<TankMessage> messages = new ArrayList<TankMessage>();
+
+		FetchTopic topics[] = new FetchTopic[1];
+		topics[0] = new FetchTopic(tankTopic, tankPartition, rSeqNum, 20000l);
+
+		byte req[] = fetchReq(0l, 0l, "java", 1000l, 0l, topics);
+		byte rsize[] = (gandalf.serialize(req.length-5, 32));
+		for (int i=0; i<4; i++) {
+			req[i+1] = rsize[i];
 		}
 
+		try {
+			socketOutputStream.write(req);
+			ByteManipulator input = new ByteManipulator();
+			boolean incomplete = false;
+			while (true) {
+				int av = bis.available();
+				log.fine("available: "+av);
+				if (av == 0) {
+					Thread.sleep(10);
+					continue;
+				}
+
+				byte ba[] = new byte[av];
+				bis.read(ba, 0, av);
+
+				if (incomplete)
+					input.append(ba);
+				else
+					input = new ByteManipulator(ba);
+
+				byte resp = (byte)input.deSerialize(8);
+				long payloadSize = input.deSerialize(32);
+				if (resp != 2) {
+					log.severe("Did not receive expected response type 2 (" +resp+ ")");
+					System.exit(1);
+				}
+
+				if (payloadSize > input.getRemainingLength()) {
+					log.warning("Received packet incomplete ");
+					incomplete = true;
+					input.resetOffset();
+					continue;
+				} else
+					incomplete = false;
+
+				log.fine("resp: " + resp);
+				log.fine("payload size: " + payloadSize);
+
+				messages =  getMessages(input);
+
+				for (Handler h : log.getHandlers())
+					h.flush();
+
+				return messages;
+			}
+		} catch (Exception e) {
+			log.log(Level.SEVERE, "ERROR getting message", e);
+			e.printStackTrace();
+			System.exit(1);
+		}
 		return null;
 	}
 
@@ -105,23 +133,19 @@ class TankClient {
 				baos.write(topics[i].get());
 			
 		} catch (Exception e) {
-			log.log(Level.SEVERE, e.getMessage(), e);
+			log.log(Level.SEVERE, "ERROR creating fetch request", e);
 			System.exit(1);
 		}
 		return baos.toByteArray();
 	}
 
 
-	private ArrayList<TankMessage> getMessages(byte[] ba) {
-		ByteManipulator input = new ByteManipulator(ba);
+	private ArrayList<TankMessage> getMessages(ByteManipulator input) {
+		ArrayList<Chunk> chunkList = new ArrayList<Chunk>();
 		// Headers
-		byte resp = (byte)input.deSerialize(8);
-		long payloadSize = input.deSerialize(32);
 		long headerSize  = input.deSerialize(32);
 		long reqId = input.deSerialize(32);
 		long totalTopics = input.deSerialize(8);
-		log.fine("resp: " + resp);
-		log.fine("payload size: " + payloadSize);
 		log.fine("header size: " + headerSize);
 		log.fine("reqid: "+ reqId);
 		log.fine(String.format("topics count: %d\n", totalTopics));
@@ -165,6 +189,7 @@ class TankClient {
 					if (errorOrFlags == 0x1) {
 						long firstAvailSeqNum = input.deSerialize(64);
 						log.warning("FirstAvailSeqNum : " + firstAvailSeqNum);
+						log.warning("HighWatermark : " + highWaterMark);
 						log.warning("Out of bounds, ABORT ABORT !!");
 						return null;
 					}
@@ -175,12 +200,14 @@ class TankClient {
 
 		//Chunks
 		ArrayList<TankMessage> messages = new ArrayList<TankMessage>();
+		long curSeqNum = 0;
 		for (Chunk c : chunkList) {
-			while (true) {
+			while (input.getRemainingLength() > 0) {
+				log.fine("Remaining Length: "+input.getRemainingLength());
 				long bundleLength = input.getVarInt();
 				log.finer("Bundle length : " +bundleLength);
 				if (bundleLength > input.getRemainingLength()) {
-					log.finer("Bundle Incomplete (remaining bytes: "+input.getRemainingLength()+")");
+					log.fine("Bundle Incomplete (remaining bytes: "+input.getRemainingLength()+")");
 					return messages;
 				}
 				input.flushOffset();
@@ -209,11 +236,11 @@ class TankClient {
 
 				ByteManipulator chunkMsgs;
 				if (compressed == 1) {
-					log.finer("Snappy decompression");
+					log.finer("Snappy uncompression");
 					try {
 						chunkMsgs = new ByteManipulator(input.unCompress(bundleLength-input.getOffset()));
 					} catch (IOException e) {
-						log.log(Level.SEVERE, e.getMessage(), e);
+						log.log(Level.SEVERE, "ERROR uncompressing", e);
 						return null;
 					}
 				} else {
@@ -222,11 +249,12 @@ class TankClient {
 
 				long lastTimestamp = 0l;
 				long prevSeqNum = firstMessageNum;
-				long curSeqNum = 0;
 				for (int i = 0; i < messageCount; i++) {
+					if (curSeqNum == 0)
+						curSeqNum = c.baseAbsSeqNum-1;
 					log.finer("#### Message "+ (i+1) +" out of "+messageCount);
 					flags = (byte)chunkMsgs.deSerialize(8);
-					log.finer(String.format("flags : %d\n", flags));
+					log.finer(String.format("flags : %d", flags));
 					if (sparse == 1) {
 						if (i == 0)
 							log.finer("seq num: " + firstMessageNum);
@@ -237,7 +265,8 @@ class TankClient {
 						} else
 							log.finer("seq num: " + lastMessageNum);
 					} else
-						curSeqNum = c.baseAbsSeqNum+i;
+						curSeqNum++;
+					log.finer("cur seq num: " + curSeqNum);
 
 					if ((flags & UseLastSpecifiedTS) == 0) {
 						lastTimestamp = chunkMsgs.deSerialize(64);
@@ -271,7 +300,7 @@ class TankClient {
 			if (b != 0x3) return false;
 			bis.skip(4);
 		} catch (Exception e) {
-			log.log(Level.SEVERE, e.getMessage(), e);
+			log.log(Level.SEVERE, "ERROR getting ping", e);
 			return false;
 		}
 		return true;
@@ -304,7 +333,7 @@ class TankClient {
 				baos.write(gandalf.serialize(seqNum, 64));
 				baos.write(gandalf.serialize(fetchSize, 32));
 			} catch (IOException e) {
-				log.log(Level.SEVERE, e.getMessage(), e);
+				log.log(Level.SEVERE, "ERROR creating FetchTopic", e);
 				System.exit(1);
 			}
 			topic = baos.toByteArray();
@@ -323,8 +352,9 @@ class TankClient {
         private String tankTopic;
         private int tankPartition;
 	private int reqSeqNum;
-        private DatagramSocket clientSocket;
-	private ArrayList<Chunk> chunkList;
+	private Socket client;
+	private BufferedInputStream bis;
+	private OutputStream socketOutputStream;
 	private Logger log;
 
 	public static final byte HaveKey = 1;

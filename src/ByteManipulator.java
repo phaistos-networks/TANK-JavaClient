@@ -33,6 +33,18 @@ class ByteManipulator {
 		return bar;
 	}
 
+	public void append(byte[] in) {
+		byte souma[] = new byte[input.length + in.length];
+
+		for (int i=0;i<input.length;i++)
+			souma[i] = input[i];
+
+		for (int i=0;i<in.length;i++)
+			souma[input.length+i] = in[i];
+
+		input = souma;
+	}
+
 	public long deSerialize(int length) {
 		int len = length / Byte.SIZE;
 		long result = 0;
@@ -144,6 +156,10 @@ class ByteManipulator {
 
 	public int getOffset() {
 		return offset;
+	}
+
+	public void resetOffset() {
+		offset = 0;
 	}
 
 	private byte input[];
