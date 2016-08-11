@@ -1,4 +1,5 @@
 import java.nio.file.*;
+import java.nio.charset.*;
 import java.io.*;
 import java.util.ArrayList;
 
@@ -60,7 +61,7 @@ class TestApp {
 		String arg = new String();
 		long id = 0;
 		boolean consumate = false, doProduce = false;
-		ArrayList<String> pushData = new ArrayList<String>();
+		ArrayList<byte[]> pushData = new ArrayList<byte[]>();
 
 		for (int i = 0 ; i < args.length; i++) {
 			arg = args[i];
@@ -91,8 +92,10 @@ class TestApp {
 						System.exit(1);
 					}
 					break;
+				case "get":
 				case "-get":
 				case "--get":
+				case "consume":
 				case "-consume":
 				case "--consume":
 					consumate = true;
@@ -103,14 +106,16 @@ class TestApp {
 						System.exit(1);
 					}
 					break;
+				case "put":
 				case "-put":
 				case "--put":
+				case "produce":
 				case "-produce":
 				case "--produce":
 					doProduce = true;
-					pushData = new ArrayList<String>();
-					for (;i<args.length;i++) {
-						pushData.add(args[i]);
+					pushData = new ArrayList<byte[]>();
+					for (i++;i<args.length;i++) {
+						pushData.add(args[i].getBytes(Charset.forName("UTF-8")));
 					}
 					break;
 			}

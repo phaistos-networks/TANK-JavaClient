@@ -9,9 +9,9 @@ class TankMessage {
 		message = m;
 	}
 
-	public TankMessage(long ts, String m) {
+	public TankMessage(long ts, byte[] m) {
 		timestamp = ts;
-		message = m.getBytes();
+		message = m;
 	}
 
 	public byte[] serialize(byte flags, String key) {

@@ -118,7 +118,7 @@ class TankClient {
 		return null;
 	}
 
-        public void publish(ArrayList<String> msgs) {
+        public void publish(ArrayList<byte[]> msgs) {
 		log.fine("Received pub with "+msgs.size()+" messages");
 		Topic topics[] = new Topic[1];
 		Bundle bun = new Bundle(msgs);
@@ -467,9 +467,9 @@ class TankClient {
 			messages = new ArrayList<TankMessage>();
 		}
 
-		Bundle(ArrayList<String> msgs) {
+		Bundle(ArrayList<byte[]> msgs) {
 			messages = new ArrayList<TankMessage>();
-			for (String m : msgs)
+			for (byte[] m : msgs)
 				addMsg(new TankMessage(0l, m));
 		}
 
