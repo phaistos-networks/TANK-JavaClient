@@ -74,9 +74,8 @@ class TestApp {
 				case "--port":
 					try { 
 						port = Integer.parseInt(args[++i]); 
-					} catch (NumberFormatException e) {
-						System.err.println(e.getCause());
-						System.exit(1);
+					} catch (Exception e) {
+						System.out.println("This is not the port you are looking for. Using default 11011");
 					}
 					break;
 				case "-t":
@@ -87,9 +86,8 @@ class TestApp {
 				case "--partition":
 					try {
 						partition = Integer.parseInt(args[++i]);
-					} catch (NumberFormatException e) {
-						System.err.println(e.getCause());
-						System.exit(1);
+					} catch (Exception e) {
+						System.out.println("I'll give you 0 now and 0 when we reach Alderaan. 0 eh ?");
 					}
 					break;
 				case "get":
@@ -101,9 +99,8 @@ class TestApp {
 					consumate = true;
 					try {
 						id = Long.parseLong(args[++i]);
-					} catch (NumberFormatException e) {
-						System.err.println(e.getCause());
-						System.exit(1);
+					} catch (Exception e) {
+						System.out.println("I have a baad feeling about this. Commencing from 0");
 					}
 					break;
 				case "put":
@@ -129,6 +126,10 @@ class TestApp {
 			ArrayList<TankMessage> myData = new ArrayList<TankMessage>();
 			while (true) {
 				myData = tc.consume(id);
+				if (myData.size() == 0) {
+					System.out.println("No Results !");
+					System.exit(2);
+				}
 				for (TankMessage tm : myData) {
 					System.out.println("seq: " + tm.getSeqID() + " ts: "+tm.getTimestamp()+" message: " + new String(tm.getMessage()));
 					id = tm.getSeqID()+1;

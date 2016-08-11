@@ -115,7 +115,7 @@ class TankClient {
 			e.printStackTrace();
 			System.exit(1);
 		}
-		return null;
+		return messages;
 	}
 
         public void publish(ArrayList<byte[]> msgs) {
@@ -240,6 +240,7 @@ class TankClient {
 
 	private ArrayList<TankMessage> getMessages(ByteManipulator input) {
 		ArrayList<Chunk> chunkList = new ArrayList<Chunk>();
+		ArrayList<TankMessage> messages = new ArrayList<TankMessage>();
 		// Headers
 		long headerSize  = input.deSerialize(32);
 		long reqId = input.deSerialize(32);
@@ -257,7 +258,7 @@ class TankClient {
 			long partitionID = input.deSerialize(16);
 			if (partitionID == 65535) {
 				log.warning("Topic Not Found ");
-				return null;
+				return messages;
 			} else {
 				// Partitions
 				for (int p=0 ; p < totalPartitions; p++) {
@@ -269,7 +270,7 @@ class TankClient {
 					log.fine(String.format("ErrorOrFlags : %x\n", errorOrFlags));
 
 					if ((errorOrFlags & 0xFF) == 0xFF) {
-						log.warning("Unknown Partition\n ABORT ABORT");
+						log.warning("Unknown Partition");
 						continue;
 					}
 
@@ -286,10 +287,8 @@ class TankClient {
 
 					if (errorOrFlags == 0x1) {
 						long firstAvailSeqNum = input.deSerialize(64);
-						log.warning("FirstAvailSeqNum : " + firstAvailSeqNum);
-						log.warning("HighWatermark : " + highWaterMark);
-						log.warning("Out of bounds, ABORT ABORT !!");
-						return null;
+						log.warning("Out of bounds. FirstAvailSeqNum: "+firstAvailSeqNum+" HighWatermark: "+highWaterMark);
+						return messages;
 					}
 					chunkList.add(new Chunk(topic, partitionID, errorOrFlags, baseAbsSeqNum, highWaterMark, chunkLength));
 				}
@@ -297,7 +296,6 @@ class TankClient {
 		}
 
 		//Chunks
-		ArrayList<TankMessage> messages = new ArrayList<TankMessage>();
 		long curSeqNum = 0;
 		for (Chunk c : chunkList) {
 			while (input.getRemainingLength() > 0) {
@@ -339,7 +337,7 @@ class TankClient {
 						chunkMsgs = new ByteManipulator(input.unCompress(bundleLength-input.getOffset()));
 					} catch (IOException e) {
 						log.log(Level.SEVERE, "ERROR uncompressing", e);
-						return null;
+						return messages;
 					}
 				} else {
 					chunkMsgs = input;
