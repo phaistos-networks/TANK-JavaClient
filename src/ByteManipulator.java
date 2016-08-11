@@ -17,7 +17,8 @@ class ByteManipulator {
 	public byte[] serialize(long data, int length) {
 		int len = length / Byte.SIZE;
 		byte[] output = new byte[len];
-		int shift = 0;
+		long shift = 0l;
+
 		for (int i=0; i < len; i++) {
 			shift = i * Byte.SIZE;
 			output[i] = (byte) (data >> shift);
@@ -47,11 +48,11 @@ class ByteManipulator {
 
 	public long deSerialize(int length) {
 		int len = length / Byte.SIZE;
-		long result = 0;
+		long result = 0l;
 
 		for (int i = 0, n = 0; i != len; ++i, n += 8) {
-			int mask = (input[offset + i]) & 0xff;
-			result|=(mask << n);
+			long mask = input[offset + i] & 0xff;
+			result |= (mask << n);
 		}
 
 		offset += len;
@@ -67,8 +68,7 @@ class ByteManipulator {
 		return v<0 ? (v+256) : v;
 	}
 
-
-	long getVarInt() {
+	public long getVarInt() {
 		long result = 0;
 		int len = 0;
 
@@ -106,7 +106,42 @@ class ByteManipulator {
 		return result;
 	}
 
-	String getStr8() {
+	private byte as_flipped(long v) {
+		return (byte)(v | (1<<7));
+	}
+
+	public byte[] getVarInt(long n) {
+		byte[] result = new byte[0];
+		if (n < (1 << 7)) {
+			result = new byte[1];
+			result[0] = (byte)n;
+		} else if (n < (1 << 14)) {
+			result = new byte[2];
+			result[0] = as_flipped(n);
+			result[1] = (byte)(n >> 7);
+		} else if (n < (1 << 21)) {
+			result = new byte[3];
+			result[0] = as_flipped(n);
+			result[1] = as_flipped(n >> 7);
+			result[2] = (byte)(n >> 14);
+		} else if (n < (1 << 28)) {
+			result = new byte[4];
+			result[0] = as_flipped(n);
+			result[1] = as_flipped(n >> 7);
+			result[2] = as_flipped(n >> 14);
+			result[3] = (byte)(n >> 21);
+		} else {
+			result = new byte[5];
+			result[0] = as_flipped(n);
+			result[1] = as_flipped(n >> 7);
+			result[2] = as_flipped(n >> 14);
+			result[3] = as_flipped(n >> 21);
+			result[4] = (byte)(n >> 28);
+		}
+		return result;
+	}
+
+	public String getStr8() {
 		short len = input[offset];
 		offset++;
 
