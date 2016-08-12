@@ -5,11 +5,9 @@ import java.util.ArrayList;
 import java.util.logging.*;
 
 class TankClient {
-        public TankClient(String tHost, int tPort, String tTopic, int tPartition) {
+        public TankClient(String tHost, int tPort) {
                 tankHost = tHost;
                 tankPort = tPort;
-                tankTopic = tTopic;
-                tankPartition = tPartition;
 		log = Logger.getLogger("tankClient");
 		gandalf = new ByteManipulator();
 
@@ -52,12 +50,12 @@ class TankClient {
 		}
         }
 
-        public ArrayList<TankMessage> consume(long rSeqNum) {
+        public ArrayList<TankMessage> consume(String topic, int partition, long rSeqNum) throws IOException, TankException {
 		log.fine("Received get "+rSeqNum);
 		ArrayList<TankMessage> messages = new ArrayList<TankMessage>();
 
 		Topic topics[] = new Topic[1];
-		topics[0] = new Topic(tankTopic, tankPartition, rSeqNum, 20000l);
+		topics[0] = new Topic(topic, partition, rSeqNum, 20000l);
 
 		byte req[] = fetchReq(0l, 0l, "java", 1000l, 0l, topics);
 		byte rsize[] = (gandalf.serialize(req.length-5, 32));
@@ -65,178 +63,56 @@ class TankClient {
 			req[i+1] = rsize[i];
 		}
 
-		try {
-			socketOutputStream.write(req);
-			ByteManipulator input = new ByteManipulator();
-			boolean incomplete = false;
-			while (true) {
-				int av = bis.available();
-				log.finer("available: "+av);
-				if (av == 0) {
+		socketOutputStream.write(req);
+		ByteManipulator input = new ByteManipulator();
+		boolean incomplete = false;
+		while (true) {
+			int av = bis.available();
+			log.finer("available: "+av);
+			if (av == 0) {
+				try {
 					Thread.sleep(10);
+				} catch (InterruptedException e) {
+					log.warning("Cmon, lemme get some sleep ! "+e.getCause());
+				} finally {
 					continue;
 				}
-
-				byte ba[] = new byte[av];
-				bis.read(ba, 0, av);
-
-				if (incomplete)
-					input.append(ba);
-				else
-					input = new ByteManipulator(ba);
-
-				byte resp = (byte)input.deSerialize(8);
-				long payloadSize = input.deSerialize(32);
-				if (resp != 2) {
-					log.severe("Did not receive expected response type 2 (" +resp+ ")");
-					System.exit(1);
-				}
-
-				if (payloadSize > input.getRemainingLength()) {
-					log.warning("Received packet incomplete ");
-					incomplete = true;
-					input.resetOffset();
-					continue;
-				} else
-					incomplete = false;
-
-				log.fine("resp: " + resp);
-				log.fine("payload size: " + payloadSize);
-
-				messages =  getMessages(input);
-
-				for (Handler h : log.getHandlers())
-					h.flush();
-
-				return messages;
 			}
-		} catch (Exception e) {
-			log.log(Level.SEVERE, "ERROR getting message", e);
-			e.printStackTrace();
-			System.exit(1);
-		}
-		return messages;
-	}
 
-        public void publish(ArrayList<byte[]> msgs) {
-		log.fine("Received pub with "+msgs.size()+" messages");
-		Topic topics[] = new Topic[1];
-		Bundle bun = new Bundle(msgs);
+			byte ba[] = new byte[av];
+			bis.read(ba, 0, av);
 
-		topics[0] = new Topic(tankTopic, tankPartition, bun);
-		byte req[] = publishReq(0l, 0l, "java", 0, 0l, topics);
-		byte rsize[] = (gandalf.serialize(req.length-5, 32));
-		for (int i=0; i<4; i++) {
-			req[i+1] = rsize[i];
-		}
+			if (incomplete)
+				input.append(ba);
+			else
+				input = new ByteManipulator(ba);
 
-		try {
-			socketOutputStream.write(req);
-			ByteManipulator input = new ByteManipulator();
-			boolean incomplete = false;
-			while (true) {
-				int av = bis.available();
-				log.finer("available: "+av);
-				if (av == 0) {
-					Thread.sleep(10);
-					continue;
-				}
-
-				byte ba[] = new byte[av];
-				bis.read(ba, 0, av);
-
-				if (incomplete)
-					input.append(ba);
-				else
-					input = new ByteManipulator(ba);
-
-				byte resp = (byte)input.deSerialize(8);
-				long payloadSize = input.deSerialize(32);
-				if (resp != 1) {
-					log.severe("Did not receive expected response type 1 (" +resp+ ")");
-					System.exit(1);
-				}
-
-				if (payloadSize > input.getRemainingLength()) {
-					log.warning("Received packet incomplete ");
-					incomplete = true;
-					input.resetOffset();
-					continue;
-				} else
-					incomplete = false;
-
-				log.fine("resp: " + resp);
-				log.fine("payload size: " + payloadSize);
-
-				getPubResponse(input);
-
-				for (Handler h : log.getHandlers())
-					h.flush();
-				break;
+			byte resp = (byte)input.deSerialize(8);
+			long payloadSize = input.deSerialize(32);
+			if (resp != 2) {
+				log.severe("Bad Response type. Expected 2, got "+resp);
+				throw new TankException("Bad Response type. Expected 2, got "+resp);
 			}
-		} catch (Exception e) {
-			log.log(Level.SEVERE, "ERROR publishing message", e);
-			e.printStackTrace();
-			System.exit(1);
+
+			if (payloadSize > input.getRemainingLength()) {
+				log.warning("Received packet incomplete ");
+				incomplete = true;
+				input.resetOffset();
+				continue;
+			} else
+				incomplete = false;
+
+			log.fine("resp: " + resp);
+			log.fine("payload size: " + payloadSize);
+
+			messages =  getMessages(input);
+
+			for (Handler h : log.getHandlers())
+				h.flush();
+
+			return messages;
 		}
 	}
-
-	private void getPubResponse(ByteManipulator input) {
-		log.fine("request ID: "+input.deSerialize(32));
-		long error = input.deSerialize(8);
-		if (error == 0xff) {
-			log.fine("Topic Error: " + error);
-			log.severe("Error, Topic not found");
-		} else {
-			log.fine("Partition Error: " + error);
-		}
-	}
-
-	private byte[] fetchReq(long clientVersion, long reqID, String clientId, long maxWait, long minBytes, Topic[] topics) { 
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		try {
-			baos.write((byte)0x2);
-			baos.write(gandalf.serialize(0, 32));
-			baos.write(gandalf.serialize(clientVersion, 16));
-			baos.write(gandalf.serialize(reqID, 32));
-			baos.write(gandalf.getStr8(clientId));
-			baos.write(gandalf.serialize(maxWait, 64));
-			baos.write(gandalf.serialize(minBytes, 32));
-			baos.write(gandalf.serialize(topics.length, 8));
-			for (int i=0; i< topics.length; i++)
-				baos.write(topics[i].serialize());
-			
-		} catch (Exception e) {
-			log.log(Level.SEVERE, "ERROR creating fetch request", e);
-			System.exit(1);
-		}
-		return baos.toByteArray();
-	}
-
-	private byte[] publishReq(long clientVersion, long reqID, String clientId, int reqAcks, long ackTimeout, Topic[] topics) {
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		try {
-			baos.write((byte)0x1);
-			baos.write(gandalf.serialize(0, 32));
-
-			baos.write(gandalf.serialize(clientVersion, 16));
-			baos.write(gandalf.serialize(reqID, 32));
-			baos.write(gandalf.getStr8(clientId));
-
-			baos.write(gandalf.serialize(reqAcks, 8));
-			baos.write(gandalf.serialize(ackTimeout, 32));
-
-			baos.write(gandalf.serialize(topics.length, 8));
-			for (int i=0; i< topics.length; i++)
-				baos.write(topics[i].serialize());
-
-		} catch (Exception e) {
-			log.log(Level.SEVERE, "ERROR creating publish request", e);
-			System.exit(1);
-		}
-		return baos.toByteArray();
-	}
-
 
 	private ArrayList<TankMessage> getMessages(ByteManipulator input) {
 		ArrayList<Chunk> chunkList = new ArrayList<Chunk>();
@@ -255,18 +131,18 @@ class TankClient {
 			log.fine("topic name: " + topic);
 			log.fine("Total Partitions: "+ totalPartitions);
 
-			long partitionID = input.deSerialize(16);
-			if (partitionID == 65535) {
-				log.warning("Topic Not Found ");
-				return messages;
+			int partition = (int)input.deSerialize(16);
+			if (partition == 65535) {
+				log.warning("Topic "+topic+" Not Found ");
+				continue;
 			} else {
 				// Partitions
 				for (int p=0 ; p < totalPartitions; p++) {
 					if (p != 0)
-						partitionID = input.deSerialize(16);
+						partition = (int)input.deSerialize(16);
 
 					byte errorOrFlags = (byte)input.deSerialize(8);
-					log.fine("Partition ID: " + partitionID);
+					log.fine("Partition : " + partition);
 					log.fine(String.format("ErrorOrFlags : %x\n", errorOrFlags));
 
 					if ((errorOrFlags & 0xFF) == 0xFF) {
@@ -287,10 +163,10 @@ class TankClient {
 
 					if (errorOrFlags == 0x1) {
 						long firstAvailSeqNum = input.deSerialize(64);
-						log.warning("Out of bounds. FirstAvailSeqNum: "+firstAvailSeqNum+" HighWatermark: "+highWaterMark);
-						return messages;
+						log.warning("Sequence out of bounds. Range: "+firstAvailSeqNum+" - "+highWaterMark);
+						continue;
 					}
-					chunkList.add(new Chunk(topic, partitionID, errorOrFlags, baseAbsSeqNum, highWaterMark, chunkLength));
+					chunkList.add(new Chunk(topic, partition, errorOrFlags, baseAbsSeqNum, highWaterMark, chunkLength));
 				}
 			}
 		}
@@ -389,6 +265,128 @@ class TankClient {
 	}
 
 
+
+        public void publish(String topic, int partition, ArrayList<byte[]> msgs) throws IOException, TankException {
+		log.fine("Received pub with "+msgs.size()+" messages");
+		Topic topics[] = new Topic[1];
+		Bundle bun = new Bundle(msgs);
+
+		topics[0] = new Topic(topic, partition, bun);
+		byte req[] = publishReq(0l, 0l, "java", 0, 0l, topics);
+		byte rsize[] = (gandalf.serialize(req.length-5, 32));
+		for (int i=0; i<4; i++) {
+			req[i+1] = rsize[i];
+		}
+
+		socketOutputStream.write(req);
+		ByteManipulator input = new ByteManipulator();
+		boolean incomplete = false;
+		while (true) {
+			int av = bis.available();
+			log.finer("available: "+av);
+			if (av == 0) {
+                                try {
+                                        Thread.sleep(10);
+                                } catch (InterruptedException e) {
+                                        log.warning("Cmon, lemme get some sleep ! "+e.getCause());
+                                } finally {
+                                        continue;
+                                }
+			}
+
+			byte ba[] = new byte[av];
+			bis.read(ba, 0, av);
+
+			if (incomplete)
+				input.append(ba);
+			else
+				input = new ByteManipulator(ba);
+
+			byte resp = (byte)input.deSerialize(8);
+			long payloadSize = input.deSerialize(32);
+			if (resp != 1) {
+                                log.severe("Bad Response type. Expected 2, got "+resp);
+                                throw new TankException("Bad Response type. Expected 2, got "+resp);
+			}
+
+			if (payloadSize > input.getRemainingLength()) {
+				log.warning("Received packet incomplete ");
+				incomplete = true;
+				input.resetOffset();
+				continue;
+			} else
+				incomplete = false;
+
+			log.fine("resp: " + resp);
+			log.fine("payload size: " + payloadSize);
+
+			getPubResponse(input);
+
+			for (Handler h : log.getHandlers())
+				h.flush();
+			break;
+		}
+	}
+
+	private void getPubResponse(ByteManipulator input) throws TankException {
+		log.fine("request ID: "+input.deSerialize(32));
+		long error = input.deSerialize(8);
+		if (error == 0xff) {
+			log.fine("Topic Error: " + error);
+			log.severe("Error, Topic not found");
+			throw new TankException("Topic Error: "+error);
+		} else {
+			log.fine("Partition Error: " + error);
+			throw new TankException("Partition Error: "+error);
+		}
+	}
+
+	private byte[] fetchReq(long clientVersion, long reqID, String clientId, long maxWait, long minBytes, Topic[] topics) {
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		try {
+			baos.write((byte)0x2);
+			baos.write(gandalf.serialize(0, 32));
+			baos.write(gandalf.serialize(clientVersion, 16));
+			baos.write(gandalf.serialize(reqID, 32));
+			baos.write(gandalf.getStr8(clientId));
+			baos.write(gandalf.serialize(maxWait, 64));
+			baos.write(gandalf.serialize(minBytes, 32));
+			baos.write(gandalf.serialize(topics.length, 8));
+			for (int i=0; i< topics.length; i++)
+				baos.write(topics[i].serialize());
+		} catch (Exception e) {
+			log.log(Level.SEVERE, "ERROR creating fetch request", e);
+			System.exit(1);
+		}
+		return baos.toByteArray();
+	}
+
+	private byte[] publishReq(long clientVersion, long reqID, String clientId, int reqAcks, long ackTimeout, Topic[] topics) {
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		try {
+			baos.write((byte)0x1);
+			baos.write(gandalf.serialize(0, 32));
+
+			baos.write(gandalf.serialize(clientVersion, 16));
+			baos.write(gandalf.serialize(reqID, 32));
+			baos.write(gandalf.getStr8(clientId));
+
+			baos.write(gandalf.serialize(reqAcks, 8));
+			baos.write(gandalf.serialize(ackTimeout, 32));
+
+			baos.write(gandalf.serialize(topics.length, 8));
+			for (int i=0; i< topics.length; i++)
+				baos.write(topics[i].serialize());
+
+		} catch (Exception e) {
+			log.log(Level.SEVERE, "ERROR creating publish request", e);
+			System.exit(1);
+		}
+		return baos.toByteArray();
+	}
+
+
+
 	private boolean getPing(BufferedInputStream bis) {
 		try {
 			int av = bis.available();
@@ -405,16 +403,16 @@ class TankClient {
 	}
 
 	private class Chunk {
-		public Chunk(String t, long pid, byte eof, long basn, long hwm, long l) {
+		public Chunk(String t, int p, byte eof, long basn, long hwm, long l) {
 			topic = t;
-			partitionID = pid;
+			partition = p;
 			errorOrFlags = eof;
 			baseAbsSeqNum = basn;
 			highWaterMark = hwm;
 			length = l;
 		}
 		String topic;
-		long partitionID;
+		long partition;
 		byte errorOrFlags;
 		long highWaterMark;
 		long length;
@@ -422,12 +420,12 @@ class TankClient {
 	}
 
 	private class Topic {
-		Topic(String name, long partitionID, long seqNum, long fetchSize) {
+		Topic(String name,int partition, long seqNum, long fetchSize) {
 			ByteArrayOutputStream baos = new ByteArrayOutputStream();
 			try {
 				baos.write(gandalf.getStr8(name));
 				baos.write(gandalf.serialize(1l, 8));
-				baos.write(gandalf.serialize(partitionID, 16));
+				baos.write(gandalf.serialize(partition, 16));
 				baos.write(gandalf.serialize(seqNum, 64));
 				baos.write(gandalf.serialize(fetchSize, 32));
 			} catch (IOException e) {
@@ -437,12 +435,12 @@ class TankClient {
 			topic = baos.toByteArray();
 		}
 
-		Topic(String name, long partitionID, Bundle bun) {
+		Topic(String name, int partition, Bundle bun) {
 			ByteArrayOutputStream baos = new ByteArrayOutputStream();
 			try {
 				baos.write(gandalf.getStr8(name));
 				baos.write(gandalf.serialize(1l, 8));
-				baos.write(gandalf.serialize(partitionID, 16));
+				baos.write(gandalf.serialize(partition, 16));
 				byte[] bb = bun.serialize();
 				baos.write(gandalf.getVarInt(bb.length));
 				baos.write(bb);
@@ -504,8 +502,6 @@ class TankClient {
 	private ByteManipulator gandalf;
         private String tankHost;
         private int tankPort;
-        private String tankTopic;
-        private int tankPartition;
 	private int reqSeqNum;
 	private Socket client;
 	private BufferedInputStream bis;

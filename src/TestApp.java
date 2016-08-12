@@ -68,9 +68,11 @@ class TestApp {
 			if (!arg.substring(0,1).equals("-"))
 				continue;
 			switch (arg) {
+				case "-host":
 				case "--host":
 					host = args[++i];
 					break;
+				case "-port":
 				case "--port":
 					try { 
 						port = Integer.parseInt(args[++i]); 
@@ -79,10 +81,12 @@ class TestApp {
 					}
 					break;
 				case "-t":
+				case "-topic":
 				case "--topic":
 					topic = args[++i];
 					break;
 				case "-p":
+				case "-partition":
 				case "--partition":
 					try {
 						partition = Integer.parseInt(args[++i]);
@@ -90,10 +94,8 @@ class TestApp {
 						System.out.println("I'll give you 0 now and 0 when we reach Alderaan. 0 eh ?");
 					}
 					break;
-				case "get":
 				case "-get":
 				case "--get":
-				case "consume":
 				case "-consume":
 				case "--consume":
 					consumate = true;
@@ -103,10 +105,8 @@ class TestApp {
 						System.out.println("I have a baad feeling about this. Commencing from 0");
 					}
 					break;
-				case "put":
 				case "-put":
 				case "--put":
-				case "produce":
 				case "-produce":
 				case "--produce":
 					doProduce = true;
@@ -118,21 +118,21 @@ class TestApp {
 			}
 		}
 
-		TankClient tc = new TankClient(host, port, topic, partition);
+		TankClient tc = new TankClient(host, port);
 		if (doProduce)
-			tc.publish(pushData);
+			tc.publish(topic, partition, pushData);
 
 		if (consumate) {
 			ArrayList<TankMessage> myData = new ArrayList<TankMessage>();
 			while (true) {
-				myData = tc.consume(id);
-				if (myData.size() == 0) {
-					System.out.println("No Results !");
-					System.exit(2);
-				}
-				for (TankMessage tm : myData) {
-					System.out.println("seq: " + tm.getSeqID() + " ts: "+tm.getTimestamp()+" message: " + new String(tm.getMessage()));
-					id = tm.getSeqID()+1;
+				try {
+					myData = tc.consume(topic, partition, id);
+					for (TankMessage tm : myData) {
+						System.out.println("seq: " + tm.getSeqID() + " ts: "+tm.getTimestamp()+" message: " + new String(tm.getMessage()));
+						id = tm.getSeqID()+1;
+					}
+				} catch (TankException e) {
+					//System.out.println(e.getCause());
 				}
 			}
 		}
