@@ -43,8 +43,7 @@ class TankClient {
 				break;
 			}
 			while (true) {
-				if ( !getPing(bis) )
-					log.severe("ERROR: No Ping Received");
+				if ( !getPing(bis) ) log.severe("ERROR: No Ping Received");
 				else {
 					log.fine("PING OK");
 					break;
@@ -65,9 +64,7 @@ class TankClient {
 
 		byte req[] = fetchReq(0l, clientReqID++, "java", 1000l, 0l, topics);
 		byte rsize[] = (gandalf.serialize(req.length-5, 32));
-		for (int i=0; i<4; i++) {
-			req[i+1] = rsize[i];
-		}
+		for (int i=0; i<4; i++) req[i+1] = rsize[i];
 		socketOutputStream.write(req);
 		poll();
 		return messages;
@@ -91,16 +88,14 @@ class TankClient {
 				}
 			}
 
-			if (remainder >= 0)
-				toRead = av;
+			if (remainder >= 0) toRead = av;
 			else
 				toRead = remainder;
 
 			byte ba[] = new byte[toRead];
 			bis.read(ba, 0, toRead);
 
-			if (remainder > 0 )
-				input.append(ba);
+			if (remainder > 0 ) input.append(ba);
 			else
 				input = new ByteManipulator(ba);
 
@@ -123,13 +118,10 @@ class TankClient {
 			log.fine("resp: " + resp);
 			log.fine("payload size: " + payloadSize);
 
-			if (reqType == TankClient.CONSUME_REQ)
-				getMessages(input);
-			else if (reqType == TankClient.PUBLISH_REQ)
-				getPubResponse(input);
+			if (reqType == TankClient.CONSUME_REQ) getMessages(input);
+			else if (reqType == TankClient.PUBLISH_REQ) getPubResponse(input);
 
-			for (Handler h : log.getHandlers())
-				h.flush();
+			for (Handler h : log.getHandlers()) h.flush();
 			break;
 		}
 	}
@@ -158,8 +150,7 @@ class TankClient {
 			} else {
 				// Partitions
 				for (int p=0 ; p < totalPartitions; p++) {
-					if (p != 0)
-						partition = (int)input.deSerialize(16);
+					if (p != 0) partition = (int)input.deSerialize(16);
 
 					byte errorOrFlags = (byte)input.deSerialize(8);
 					log.fine("Partition : " + partition);
@@ -211,8 +202,7 @@ class TankClient {
 				log.finer("Bundle compressed : " +compressed);
 				log.finer("Bundle SPARSE : " +sparse);
 
-				if (messageCount == 0)
-					messageCount = input.getVarInt();
+				if (messageCount == 0) messageCount = input.getVarInt();
 				log.finer("Messages in set : " +messageCount);
 
 				long firstMessageNum = 0l;
@@ -242,14 +232,12 @@ class TankClient {
 				long timestamp = 0l;
 				long prevSeqNum = firstMessageNum;
 				for (int i = 0; i < messageCount; i++) {
-					if (curSeqNum == 0)
-						curSeqNum = c.baseAbsSeqNum-1;
+					if (curSeqNum == 0) curSeqNum = c.baseAbsSeqNum-1;
 					log.finer("#### Message "+ (i+1) +" out of "+messageCount);
 					flags = (byte)chunkMsgs.deSerialize(8);
 					log.finer(String.format("flags : %d", flags));
 					if (sparse == 1) {
-						if (i == 0)
-							log.finer("seq num: " + firstMessageNum);
+						if (i == 0) log.finer("seq num: " + firstMessageNum);
 						else if (i!=0 && i!=messageCount-1) {
 							curSeqNum = (chunkMsgs.getVarInt() + 1 + prevSeqNum);
 							log.finer("seq num: " + curSeqNum);
@@ -293,9 +281,7 @@ class TankClient {
 		topics[0] = new Topic(topic, partition, bun);
 		byte req[] = publishReq(0l, clientReqID++, "java", 0, 0l, topics);
 		byte rsize[] = (gandalf.serialize(req.length-5, 32));
-		for (int i=0; i<4; i++) {
-			req[i+1] = rsize[i];
-		}
+		for (int i=0; i<4; i++) req[i+1] = rsize[i];
 
 		socketOutputStream.write(req);
                 poll();
@@ -308,8 +294,7 @@ class TankClient {
 			log.fine("Topic Error: " + error);
 			log.severe("Error, Topic not found");
 			throw new TankException("Topic Error: "+error);
-		} else if (error != 0)
-			throw new TankException("Partition Error: "+error);
+		} else if (error != 0) throw new TankException("Partition Error: "+error);
 		else
 			log.fine("Partition Error: " + error);
 	}
@@ -325,8 +310,7 @@ class TankClient {
 			baos.write(gandalf.serialize(maxWait, 64));
 			baos.write(gandalf.serialize(minBytes, 32));
 			baos.write(gandalf.serialize(topics.length, 8));
-			for (int i=0; i< topics.length; i++)
-				baos.write(topics[i].serialize());
+			for (int i=0; i< topics.length; i++) baos.write(topics[i].serialize());
 		} catch (Exception e) {
 			log.log(Level.SEVERE, "ERROR creating fetch request", e);
 			System.exit(1);
@@ -348,8 +332,7 @@ class TankClient {
 			baos.write(gandalf.serialize(ackTimeout, 32));
 
 			baos.write(gandalf.serialize(topics.length, 8));
-			for (int i=0; i< topics.length; i++)
-				baos.write(topics[i].serialize());
+			for (int i=0; i< topics.length; i++) baos.write(topics[i].serialize());
 
 		} catch (Exception e) {
 			log.log(Level.SEVERE, "ERROR creating publish request", e);
@@ -438,8 +421,7 @@ class TankClient {
 
 		Bundle(ArrayList<byte[]> msgs) {
 			messages = new ArrayList<TankMessage>();
-			for (byte[] m : msgs)
-				addMsg(new TankMessage(0l, m));
+			for (byte[] m : msgs) addMsg(new TankMessage(0l, m));
 		}
 
 		void addMsg(TankMessage tm) {
@@ -460,8 +442,7 @@ class TankClient {
 				}
 
 				flags = 0;
-				for (TankMessage tm : messages)
-					baos.write(tm.serialize(flags, ""));
+				for (TankMessage tm : messages) baos.write(tm.serialize(flags, ""));
                         } catch (IOException e) {
                                 log.log(Level.SEVERE, "ERROR creating Topic", e);
                                 System.exit(1);

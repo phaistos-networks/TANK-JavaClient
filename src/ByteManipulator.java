@@ -28,8 +28,7 @@ class ByteManipulator {
 
 	public byte[] get(int length) {
 		byte bar[] = new byte[length];
-		for (int i=0; i<length; i++)
-			bar[i] = input[offset+i];
+		for (int i=0; i<length; i++) bar[i] = input[offset+i];
 		offset += length;
 		return bar;
 	}
@@ -37,11 +36,8 @@ class ByteManipulator {
 	public void append(byte[] in) {
 		byte souma[] = new byte[input.length + in.length];
 
-		for (int i=0;i<input.length;i++)
-			souma[i] = input[i];
-
-		for (int i=0;i<in.length;i++)
-			souma[input.length+i] = in[i];
+		for (int i=0;i<input.length;i++) souma[i] = input[i];
+		for (int i=0;i<in.length;i++) souma[input.length+i] = in[i];
 
 		input = souma;
 	}
@@ -146,8 +142,7 @@ class ByteManipulator {
 		offset++;
 
 		byte op[] = new byte[len];
-		for (int i=0; i < len; i++)
-			op[i] = input[offset+i];
+		for (int i=0; i < len; i++) op[i] = input[offset+i];
 		offset += len;
 		return new String(op);
 	}
@@ -158,9 +153,7 @@ class ByteManipulator {
                 out[0]=len;
                 int i=1;
                 try {
-                        for (byte b : data.getBytes("ASCII")) {
-                                out[i++] = b;
-                        }
+                        for (byte b : data.getBytes("ASCII")) out[i++] = b;
                 } catch (UnsupportedEncodingException e) {
                         e.printStackTrace();
                         System.exit(1);
@@ -174,17 +167,14 @@ class ByteManipulator {
 
 	public byte[] unCompress(long len) throws IOException {
 		byte toDC[] = new byte[(int)len];
-		for (int i=0; i<len; i++) {
-			toDC[i] = input[offset+i];
-		}
+		for (int i=0; i<len; i++) toDC[i] = input[offset+i];
 		offset += len;
 		return Snappy.uncompress(toDC);
 	}
 
 	public void flushOffset() {
 		byte newInput[] = new byte[getRemainingLength()];
-		for (int i=0;i < getRemainingLength() ; i++)
-			newInput[i] = input[offset+i];
+		for (int i=0;i < getRemainingLength() ; i++) newInput[i] = input[offset+i];
 		input = newInput;
 		offset = 0;
 	}

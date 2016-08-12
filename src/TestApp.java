@@ -115,11 +115,10 @@ class TestApp {
 		}
 
 		TankClient tc = new TankClient(host, port);
-		ArrayList<TankMessage> data = new ArrayList<TankMessage>();
-		if (doProduce) {
+		if (doProduce)
 			tc.publish(topic, partition, pushData);
-		}
 
+		ArrayList<TankMessage> data = new ArrayList<TankMessage>();
 		if (consumate) {
 			while (true) {
 				data = tc.consume(topic, partition, id);
