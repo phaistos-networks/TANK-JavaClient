@@ -19,8 +19,9 @@ class TankClient {
 				try {
 					client = new Socket(tankHost, tankPort);
 				} catch (Exception e) {
-					log.log(Level.SEVERE, "ERROR opening socket", e);
-					Thread.sleep(100);
+					log.severe(e.getMessage());
+					log.log(Level.FINEST, "ERROR opening socket", e);
+					Thread.sleep(TankClient.RETRY_INTERVAL);
 					continue;
 				}
 				//client.setSoTimeout(1000);
@@ -41,11 +42,13 @@ class TankClient {
 				socketOutputStream = client.getOutputStream();
 				break;
 			}
-			if ( !getPing(bis) ) {
-				log.severe("ERROR: No Ping Received");
-				System.exit(1);
-			} else {
-				log.fine("PING OK");
+			while (true) {
+				if ( !getPing(bis) )
+					log.severe("ERROR: No Ping Received");
+				else {
+					log.fine("PING OK");
+					break;
+				}
 			}
 		} catch (Exception e) {
 			log.log(Level.SEVERE, "ERROR opening Streams", e);
