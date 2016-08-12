@@ -8,8 +8,11 @@ class TankClient {
         public TankClient(String tHost, int tPort) {
                 tankHost = tHost;
                 tankPort = tPort;
+		clientReqID = 0;
 		log = Logger.getLogger("tankClient");
 		gandalf = new ByteManipulator();
+		messages = new ArrayList<TankMessage>();
+		reqType = 3;
 
                 try {
 			while (true) {
@@ -51,27 +54,33 @@ class TankClient {
         }
 
         public ArrayList<TankMessage> consume(String topic, int partition, long rSeqNum) throws IOException, TankException {
-		log.fine("Received get "+rSeqNum);
-		ArrayList<TankMessage> messages = new ArrayList<TankMessage>();
+		log.fine("Received consume req seq: "+rSeqNum+" reqID: "+(clientReqID+1));
+		reqType=TankClient.CONSUME_REQ;
 
 		Topic topics[] = new Topic[1];
 		topics[0] = new Topic(topic, partition, rSeqNum, 20000l);
 
-		byte req[] = fetchReq(0l, 0l, "java", 1000l, 0l, topics);
+		byte req[] = fetchReq(0l, clientReqID++, "java", 1000l, 0l, topics);
 		byte rsize[] = (gandalf.serialize(req.length-5, 32));
 		for (int i=0; i<4; i++) {
 			req[i+1] = rsize[i];
 		}
-
 		socketOutputStream.write(req);
+		poll();
+		return messages;
+	}
+
+	private void poll() throws IOException, TankException {
+		messages = new ArrayList<TankMessage>();
 		ByteManipulator input = new ByteManipulator();
-		boolean incomplete = false;
+		int remainder = 0;
+		int toRead = 0;
 		while (true) {
 			int av = bis.available();
-			log.finer("available: "+av);
+			log.finest("bytes available: "+av);
 			if (av == 0) {
 				try {
-					Thread.sleep(10);
+					Thread.sleep(TankClient.RETRY_INTERVAL);
 				} catch (InterruptedException e) {
 					log.warning("Cmon, lemme get some sleep ! "+e.getCause());
 				} finally {
@@ -79,44 +88,52 @@ class TankClient {
 				}
 			}
 
-			byte ba[] = new byte[av];
-			bis.read(ba, 0, av);
+			if (remainder >= 0)
+				toRead = av;
+			else
+				toRead = remainder;
 
-			if (incomplete)
+			byte ba[] = new byte[toRead];
+			bis.read(ba, 0, toRead);
+
+			if (remainder > 0 )
 				input.append(ba);
 			else
 				input = new ByteManipulator(ba);
 
 			byte resp = (byte)input.deSerialize(8);
 			long payloadSize = input.deSerialize(32);
-			if (resp != 2) {
-				log.severe("Bad Response type. Expected 2, got "+resp);
-				throw new TankException("Bad Response type. Expected 2, got "+resp);
+
+			if (resp != reqType) {
+				log.severe("Bad Response type. Expected "+reqType+", got "+resp);
+				throw new TankException("Bad Response type. Expected "+reqType+", got "+resp);
 			}
 
 			if (payloadSize > input.getRemainingLength()) {
 				log.warning("Received packet incomplete ");
-				incomplete = true;
+				remainder = (int)(payloadSize - input.getRemainingLength());
 				input.resetOffset();
 				continue;
 			} else
-				incomplete = false;
+				remainder = 0;
 
 			log.fine("resp: " + resp);
 			log.fine("payload size: " + payloadSize);
 
-			messages =  getMessages(input);
+			if (reqType == TankClient.CONSUME_REQ)
+				getMessages(input);
+			else if (reqType == TankClient.PUBLISH_REQ)
+				getPubResponse(input);
 
 			for (Handler h : log.getHandlers())
 				h.flush();
-
-			return messages;
+			break;
 		}
 	}
 
-	private ArrayList<TankMessage> getMessages(ByteManipulator input) {
+	private void getMessages(ByteManipulator input) {
 		ArrayList<Chunk> chunkList = new ArrayList<Chunk>();
-		ArrayList<TankMessage> messages = new ArrayList<TankMessage>();
+		//ArrayList<TankMessage> messages = new ArrayList<TankMessage>();
 		// Headers
 		long headerSize  = input.deSerialize(32);
 		long reqId = input.deSerialize(32);
@@ -175,12 +192,12 @@ class TankClient {
 		long curSeqNum = 0;
 		for (Chunk c : chunkList) {
 			while (input.getRemainingLength() > 0) {
-				log.fine("Remaining Length: "+input.getRemainingLength());
+				log.finer("Remaining Length: "+input.getRemainingLength());
 				long bundleLength = input.getVarInt();
 				log.finer("Bundle length : " +bundleLength);
 				if (bundleLength > input.getRemainingLength()) {
 					log.fine("Bundle Incomplete (remaining bytes: "+input.getRemainingLength()+")");
-					return messages;
+					return;
 				}
 				input.flushOffset();
 
@@ -213,7 +230,7 @@ class TankClient {
 						chunkMsgs = new ByteManipulator(input.unCompress(bundleLength-input.getOffset()));
 					} catch (IOException e) {
 						log.log(Level.SEVERE, "ERROR uncompressing", e);
-						return messages;
+						return;
 					}
 				} else {
 					chunkMsgs = input;
@@ -242,9 +259,9 @@ class TankClient {
 
 					if ((flags & UseLastSpecifiedTS) == 0) {
 						timestamp = chunkMsgs.deSerialize(64);
-						log.fine("New Timestamp : " + timestamp);
+						log.finer("New Timestamp : " + timestamp);
 					} else {
-						log.fine("Using last Timestamp : "+ timestamp);
+						log.finer("Using last Timestamp : "+ timestamp);
 					}
 
 					if ((flags & HaveKey) == 1) {
@@ -261,71 +278,24 @@ class TankClient {
 				}
 			}
 		}
-		return messages;
 	}
 
-
-
         public void publish(String topic, int partition, ArrayList<byte[]> msgs) throws IOException, TankException {
-		log.fine("Received pub with "+msgs.size()+" messages");
+		log.fine("Received pub req with "+msgs.size()+" messages");
+		reqType=TankClient.PUBLISH_REQ;
+
 		Topic topics[] = new Topic[1];
 		Bundle bun = new Bundle(msgs);
 
 		topics[0] = new Topic(topic, partition, bun);
-		byte req[] = publishReq(0l, 0l, "java", 0, 0l, topics);
+		byte req[] = publishReq(0l, clientReqID++, "java", 0, 0l, topics);
 		byte rsize[] = (gandalf.serialize(req.length-5, 32));
 		for (int i=0; i<4; i++) {
 			req[i+1] = rsize[i];
 		}
 
 		socketOutputStream.write(req);
-		ByteManipulator input = new ByteManipulator();
-		boolean incomplete = false;
-		while (true) {
-			int av = bis.available();
-			log.finer("available: "+av);
-			if (av == 0) {
-                                try {
-                                        Thread.sleep(10);
-                                } catch (InterruptedException e) {
-                                        log.warning("Cmon, lemme get some sleep ! "+e.getCause());
-                                } finally {
-                                        continue;
-                                }
-			}
-
-			byte ba[] = new byte[av];
-			bis.read(ba, 0, av);
-
-			if (incomplete)
-				input.append(ba);
-			else
-				input = new ByteManipulator(ba);
-
-			byte resp = (byte)input.deSerialize(8);
-			long payloadSize = input.deSerialize(32);
-			if (resp != 1) {
-                                log.severe("Bad Response type. Expected 2, got "+resp);
-                                throw new TankException("Bad Response type. Expected 2, got "+resp);
-			}
-
-			if (payloadSize > input.getRemainingLength()) {
-				log.warning("Received packet incomplete ");
-				incomplete = true;
-				input.resetOffset();
-				continue;
-			} else
-				incomplete = false;
-
-			log.fine("resp: " + resp);
-			log.fine("payload size: " + payloadSize);
-
-			getPubResponse(input);
-
-			for (Handler h : log.getHandlers())
-				h.flush();
-			break;
-		}
+                poll();
 	}
 
 	private void getPubResponse(ByteManipulator input) throws TankException {
@@ -335,10 +305,10 @@ class TankClient {
 			log.fine("Topic Error: " + error);
 			log.severe("Error, Topic not found");
 			throw new TankException("Topic Error: "+error);
-		} else {
-			log.fine("Partition Error: " + error);
+		} else if (error != 0)
 			throw new TankException("Partition Error: "+error);
-		}
+		else
+			log.fine("Partition Error: " + error);
 	}
 
 	private byte[] fetchReq(long clientVersion, long reqID, String clientId, long maxWait, long minBytes, Topic[] topics) {
@@ -507,7 +477,14 @@ class TankClient {
 	private BufferedInputStream bis;
 	private OutputStream socketOutputStream;
 	private Logger log;
+	private int clientReqID;
+	private ArrayList<TankMessage> messages;
 
 	public static final byte HaveKey = 1;
 	public static final byte UseLastSpecifiedTS = 2;
+	public static final long RETRY_INTERVAL = 50;
+
+	private short reqType;
+	public static final short PUBLISH_REQ = 1;
+	public static final short CONSUME_REQ = 2;
 }

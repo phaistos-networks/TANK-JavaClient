@@ -5,7 +5,7 @@ import java.util.ArrayList;
 
 class TestApp {
 	public static void main(String[] args) throws Exception {
-
+/*
 		byte foo[] = new ByteManipulator().getStr8("Hello World");
 		String myStr8 = new ByteManipulator(foo).getStr8();
 		if (! myStr8.equals("Hello World")) {
@@ -51,6 +51,7 @@ class TestApp {
 			}
 
 		}
+*/
 
 
 
@@ -82,33 +83,28 @@ class TestApp {
 					break;
 				case "-t":
 				case "-topic":
-				case "--topic":
 					topic = args[++i];
 					break;
 				case "-p":
 				case "-partition":
-				case "--partition":
 					try {
 						partition = Integer.parseInt(args[++i]);
 					} catch (Exception e) {
-						System.out.println("I'll give you 0 now and 0 when we reach Alderaan. 0 eh ?");
+						System.out.println("I'll give you 0 now and 0 when we reach Alderaan. Partition 0 eh ?");
 					}
 					break;
 				case "-get":
-				case "--get":
 				case "-consume":
-				case "--consume":
 					consumate = true;
 					try {
 						id = Long.parseLong(args[++i]);
 					} catch (Exception e) {
-						System.out.println("I have a baad feeling about this. Commencing from 0");
+						System.out.println("I have a baad feeling about this. Commencing from sequence 0");
 					}
 					break;
 				case "-put":
-				case "--put":
-				case "-produce":
-				case "--produce":
+				case "-set":
+				case "-publish":
 					doProduce = true;
 					pushData = new ArrayList<byte[]>();
 					for (i++;i<args.length;i++) {
@@ -119,21 +115,19 @@ class TestApp {
 		}
 
 		TankClient tc = new TankClient(host, port);
-		if (doProduce)
+		ArrayList<TankMessage> data = new ArrayList<TankMessage>();
+		if (doProduce) {
 			tc.publish(topic, partition, pushData);
+		}
 
 		if (consumate) {
-			ArrayList<TankMessage> myData = new ArrayList<TankMessage>();
 			while (true) {
-				try {
-					myData = tc.consume(topic, partition, id);
-					for (TankMessage tm : myData) {
-						System.out.println("seq: " + tm.getSeqID() + " ts: "+tm.getTimestamp()+" message: " + new String(tm.getMessage()));
-						id = tm.getSeqID()+1;
-					}
-				} catch (TankException e) {
-					//System.out.println(e.getCause());
+				data = tc.consume(topic, partition, id);
+				for (TankMessage tm : data) {
+					System.out.println("seq: " + tm.getSeqID() + " ts: "+tm.getTimestamp()+" message: " + new String(tm.getMessage()));
+					id = tm.getSeqID()+1;
 				}
+				Thread.sleep(50);
 			}
 		}
 	}
