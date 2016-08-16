@@ -89,15 +89,13 @@ class TankClient {
             }
 
             if (remainder >= 0) toRead = av;
-            else
-                toRead = remainder;
+            else toRead = remainder;
 
             byte ba[] = new byte[toRead];
             bis.read(ba, 0, toRead);
 
             if (remainder > 0 ) input.append(ba);
-            else
-                input = new ByteManipulator(ba);
+            else input = new ByteManipulator(ba);
 
             byte resp = (byte)input.deSerialize(8);
             long payloadSize = input.deSerialize(32);
@@ -112,8 +110,7 @@ class TankClient {
                 remainder = (int)(payloadSize - input.getRemainingLength());
                 input.resetOffset();
                 continue;
-            } else
-                remainder = 0;
+            } else remainder = 0;
 
             log.fine("resp: " + resp);
             log.fine("payload size: " + payloadSize);
@@ -225,9 +222,7 @@ class TankClient {
                         log.log(Level.SEVERE, "ERROR uncompressing", e);
                         return;
                     }
-                } else {
-                    chunkMsgs = input;
-                }
+                } else chunkMsgs = input;
 
                 long timestamp = 0l;
                 long prevSeqNum = firstMessageNum;
@@ -242,20 +237,16 @@ class TankClient {
                             curSeqNum = (chunkMsgs.getVarInt() + 1 + prevSeqNum);
                             log.finer("seq num: " + curSeqNum);
                             prevSeqNum = curSeqNum;
-                        } else
-                            log.finer("seq num: " + lastMessageNum);
-                    } else
-                        curSeqNum++;
+                        } else log.finer("seq num: " + lastMessageNum);
+                    } else curSeqNum++;
                     log.finer("cur seq num: " + curSeqNum);
 
-                    if ((flags & UseLastSpecifiedTS) == 0) {
+                    if ((flags & USE_LAST_SPECIFIED_TS) == 0) {
                         timestamp = chunkMsgs.deSerialize(64);
                         log.finer("New Timestamp : " + timestamp);
-                    } else {
-                        log.finer("Using last Timestamp : "+ timestamp);
-                    }
+                    } else log.finer("Using last Timestamp : "+ timestamp);
 
-                    if ((flags & HaveKey) == 1) {
+                    if ((flags & HAVE_KEY) == 1) {
                         String key = chunkMsgs.getStr8();
                         log.finer("We have a key and it is : " + key);
                     }
@@ -295,8 +286,7 @@ class TankClient {
             log.severe("Error, Topic not found");
             throw new TankException("Topic Error: "+error);
         } else if (error != 0) throw new TankException("Partition Error: "+error);
-        else
-            log.fine("Partition Error: " + error);
+        else log.fine("Partition Error: " + error);
     }
 
     private byte[] fetchReq(long clientVersion, long reqID, String clientId, long maxWait, long minBytes, Topic[] topics) {
@@ -459,12 +449,12 @@ class TankClient {
     private Logger log;
     private int clientReqID;
     private ArrayList<TankMessage> messages;
+    private short reqType;
 
-    public static final byte HaveKey = 1;
-    public static final byte UseLastSpecifiedTS = 2;
+    public static final byte HAVE_KEY = 1;
+    public static final byte USE_LAST_SPECIFIED_TS = 2;
     public static final long RETRY_INTERVAL = 50;
 
-    private short reqType;
     public static final short PUBLISH_REQ = 1;
     public static final short CONSUME_REQ = 2;
 }
