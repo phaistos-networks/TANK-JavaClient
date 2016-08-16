@@ -2,6 +2,7 @@ import java.nio.file.*;
 import java.nio.charset.*;
 import java.io.*;
 import java.util.ArrayList;
+import gr.phaistosnetworks.TANK.*;
 
 class TestApp {
     public static void main(String[] args) throws Exception {
@@ -115,8 +116,7 @@ class TestApp {
         }
 
         TankClient tc = new TankClient(host, port);
-        if (doProduce)
-            tc.publish(topic, partition, pushData);
+        if (doProduce) tc.publish(topic, partition, pushData);
 
         ArrayList<TankMessage> data = new ArrayList<TankMessage>();
         if (consumate) {

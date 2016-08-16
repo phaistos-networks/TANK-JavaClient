@@ -1,3 +1,5 @@
+package gr.phaistosnetworks.TANK;
+
 import java.io.*;
 import java.nio.*;
 import org.xerial.snappy.Snappy;

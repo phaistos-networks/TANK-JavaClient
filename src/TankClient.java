@@ -1,10 +1,12 @@
+package gr.phaistosnetworks.TANK;
+
 import java.net.*;
 import java.io.*;
 import java.nio.*;
 import java.util.ArrayList;
 import java.util.logging.*;
 
-class TankClient {
+public class TankClient {
     public TankClient(String tHost, int tPort) {
         tankHost = tHost;
         tankPort = tPort;

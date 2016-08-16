@@ -1,7 +1,9 @@
+package gr.phaistosnetworks.TANK;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
-class TankMessage {
+public class TankMessage {
 
     public TankMessage(long sid, long ts, byte[] m) {
         seqID = sid;
@@ -19,10 +21,10 @@ class TankMessage {
         ByteManipulator gandalf = new ByteManipulator();
         try {
             baos.write(gandalf.serialize(flags, 8));
-            if ((flags & TankClient.UseLastSpecifiedTS) == 0)
+            if ((flags & TankClient.USE_LAST_SPECIFIED_TS) == 0)
                 baos.write(gandalf.serialize(System.currentTimeMillis(), 64));
 
-            if ((flags & TankClient.HaveKey) == 1)
+            if ((flags & TankClient.HAVE_KEY) == 1)
                 baos.write(gandalf.getStr8(key));
 
             baos.write(gandalf.getVarInt(message.length));
