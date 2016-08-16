@@ -10,9 +10,9 @@ FLAGS= -Xdiags:verbose -Xlint:unchecked -Xlint:deprecation -cp $(CPATH)
 
 all:	TankClient testApp doc
 
-doc: 	$(SRC)/*.java
+doc: 	
 	mkdir -p $(DOC)
-	$(JAVADOC) -d $(DOC) -sourcepath $(SRC) -subpackages gr
+	$(JAVADOC) -cp $(CPATH) -d $(DOC) -sourcepath $(SRC) $(PACKAGE)
 
 clean:
 	find . -type f -name '*.class' | xargs rm -f
@@ -20,8 +20,10 @@ clean:
 testApp: TestApp.java
 	$(JAVAC) $(FLAGS) TestApp.java
 
-TankClient: $(SRC)/*.java
+TankClient: 
 	mkdir -p $(DST)
-	cd $(SRC) && $(JAVAC) $(FLAGS) *.java
-	mv $(SRC)/*.class $(DST)
+	$(JAVAC) -d . $(FLAGS) $(SRC)/$(DST)/*.java
 
+#find src/ -type f -name '*.java' | xargs javac -cp .:ext/snappy-java-1.1.2.6.jar -d gr/phaistosnetworks/TANK/
+
+.PHONY: doc
