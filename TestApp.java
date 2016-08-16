@@ -6,7 +6,7 @@ import gr.phaistosnetworks.TANK.*;
 
 class TestApp {
     public static void main(String[] args) throws Exception {
-        byte foo[] = new ByteManipulator().getStr8("Hello World");
+        byte foo[] = ByteManipulator.getStr8("Hello World");
         String myStr8 = new ByteManipulator(foo).getStr8();
         if (! myStr8.equals("Hello World")) {
             System.err.println("Str8 conversion is broken");
@@ -28,7 +28,7 @@ class TestApp {
         long testOP;
         //Test long
         for (long testVal : tVals) {
-            foo = new ByteManipulator().serialize(testVal, 64);
+            foo = ByteManipulator.serialize(testVal, 64);
 
             testOP = new ByteManipulator(foo).deSerialize(64);
             if (testOP != testVal) {
@@ -42,7 +42,7 @@ class TestApp {
         for (long testVal : tVals) {
             if (testVal > 4294967295l)
                 continue;
-            foo = new ByteManipulator().getVarInt(testVal);
+            foo = ByteManipulator.getVarInt(testVal);
             testOP = new ByteManipulator(foo).getVarInt();
             if (testOP != testVal) {
                 System.err.println("Varint conversion is broken");

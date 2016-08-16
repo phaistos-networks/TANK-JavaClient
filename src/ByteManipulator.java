@@ -4,51 +4,94 @@ import java.io.*;
 import java.nio.*;
 import org.xerial.snappy.Snappy;
 
-//http://www.java2s.com/Code/Java/Collections-Data-Structure/ConvertbytearraytoIntegerandLong.htm
-//http://www.tutorialspoint.com/java/java_bitwise_operators_examples.htm
-
+/**
+ * Purpose: To perform magic tricks on bytes.
+ * Serializing / deserializing / transforming to and from str8 and varints.
+ *
+ * @author Robert Krambovitis
+ */
 public class ByteManipulator {
-    public ByteManipulator() {
-        offset = 0;
-    }
-
+    /**
+     * Constructor that sets the byte array to be manipulated.
+     *
+     * @param in the byte array to be manipulated;
+     */
     public ByteManipulator(byte[] in) { 
         input = in; 
         offset = 0;
     }
-    public byte[] serialize(long data, int length) {
+
+    /**
+     * Appends a byte array to the current one.
+     *
+     * @param in the byte array to append.
+     */
+    public void append(byte[] in) {
+        byte souma[] = new byte[input.length + in.length];
+
+        for (int i = 0; i < input.length; i++) souma[i] = input[i];
+        for (int i = 0; i < in.length; i++) souma[input.length + i] = in[i];
+
+        input = souma;
+    }
+
+    /**
+     * Returns the next length bytes from the current byte array.
+     * There is no health check. If you request more bytes than available, boom
+     *
+     * @param length the amount of bytes to return
+     * @return a byte array containing the requested length of bytes
+     */
+    public byte[] get(int length) {
+        byte bar[] = new byte[length];
+        for (int i = 0; i < length; i++) bar[i] = input[offset + i];
+        offset += length;
+        return bar;
+    }
+
+    /**
+     * Uncompress the next len bytes using the snappy library.
+     *
+     * @param len the amount of bytes to uncompress
+     * @return a byte array containing the uncompressed data.
+     */
+    public byte[] snappyUncompress(long len) throws IOException {
+        byte toDC[] = new byte[(int)len];
+        for (int i = 0; i < len; i++) toDC[i] = input[offset + i];
+        offset += len;
+        return Snappy.uncompress(toDC);
+    }
+
+    /**
+     * Serializes a long into a byte array with length
+     *
+     * @param length the length of the returned byte array
+     * @param data the long to process.
+     * @return a byte array that contains the serialized data.
+     */
+    public static byte[] serialize(long data, int length) {
         int len = length / Byte.SIZE;
         byte[] output = new byte[len];
-        long shift = 0l;
+        long shift = 0L;
 
-        for (int i=0; i < len; i++) {
+        for (int i = 0; i < len; i++) {
             shift = i * Byte.SIZE;
             output[i] = (byte) (data >> shift);
         }
         return output;
     }
 
-    public byte[] get(int length) {
-        byte bar[] = new byte[length];
-        for (int i=0; i<length; i++) bar[i] = input[offset+i];
-        offset += length;
-        return bar;
-    }
-
-    public void append(byte[] in) {
-        byte souma[] = new byte[input.length + in.length];
-
-        for (int i=0;i<input.length;i++) souma[i] = input[i];
-        for (int i=0;i<in.length;i++) souma[input.length+i] = in[i];
-
-        input = souma;
-    }
-
+    /**
+     * Deserializes the next length bytes and returns a long.
+     *
+     * @param length the amount of bytes to deserialize.
+     * @return the long value of those bytes.
+     */
     public long deSerialize(int length) {
         int len = length / Byte.SIZE;
-        long result = 0l;
+        long result = 0L;
 
-        for (int i = 0, n = 0; i != len; ++i, n += 8) {
+        for (int i = 0, n = 0; i != len; ++i, n += Byte.SIZE) {
             long mask = input[offset + i] & 0xff;
             result |= (mask << n);
         }
@@ -57,102 +100,149 @@ public class ByteManipulator {
         return result;
     }
 
+    /**
+     * sets the leftmost bit to 0
+     *
+     * @param v the byte to flip
+     * @return int containing the byte. int is used due to need of unsigned bytes.
+     */
     private int flipped(byte v) {
-        return as_int(v & ~(1<<7));
+        return asInt(v & ~(1 << VARINT_BYTE_SHIFT_ONE));
     }
 
-    private int as_int(int v) {
-        return v<0 ? (v+256) : v;
+    /**
+     * flips the leftmost bit of the last byte of a long.
+     *
+     * @param v the long that needs it's last byte flipped.
+     * @return the flipped byte
+     */
+    private static byte asFlipped(long v) {
+        return (byte)(v | (1 << VARINT_BYTE_SHIFT_ONE));
     }
 
+    /**
+     * returns the integer value of a byte, as if it was unsigned.
+     *
+     * @param v the value to get integer value for.
+     * @return positive integer value of that byte.
+     */
+    private int asInt(int v) {
+        return v < 0 ? (v + BYTE_MAX) : v;
+    }
+
+    /**
+     * reads a varint from the next unprocessed bytes of the current array.
+     *
+     * @return the long value of the varint
+     */
     public long getVarInt() {
         long result = 0;
         int len = 0;
 
-        if (as_int(input[offset]) > 127) {
-            if (as_int(input[offset+1]) > 127) {
-                if (as_int(input[offset+2]) > 127) {
-                    if (as_int(input[offset+3]) > 127) {
+        if (asInt(input[offset]) > VARINT_BYTE_MAX) {
+            if (asInt(input[offset + 1]) > VARINT_BYTE_MAX) {
+                if (asInt(input[offset + 2]) > VARINT_BYTE_MAX) {
+                    if (asInt(input[offset + 3]) > VARINT_BYTE_MAX) {
                         len = 5;
-                        result |= flipped(input[offset]) | (flipped(input[offset+1]) << 7) | (flipped(input[offset+2]) << 14) | (flipped(input[offset+3]) << 21) | (as_int(input[offset+4]) << 28); 
+                        result |= flipped(input[offset])
+                            | (flipped(input[offset + 1]) << VARINT_BYTE_SHIFT_ONE)
+                            | (flipped(input[offset + 2]) << VARINT_BYTE_SHIFT_TWO)
+                            | (flipped(input[offset + 3]) << VARINT_BYTE_SHIFT_THREE)
+                            | (asInt(input[offset + 4]) << VARINT_BYTE_SHIFT_FOUR);
                     } else {
                         len = 4;
-                        result |= flipped(input[offset]) | (flipped(input[offset+1]) << 7) | (flipped(input[offset+2]) << 14) | (as_int(input[offset+3]) << 21);
+                        result |= flipped(input[offset])
+                            | (flipped(input[offset + 1]) << VARINT_BYTE_SHIFT_ONE)
+                            | (flipped(input[offset + 2]) << VARINT_BYTE_SHIFT_TWO)
+                            | (asInt(input[offset + 3]) << VARINT_BYTE_SHIFT_THREE);
                     }
                 } else {
                     len = 3;
-                    result |= flipped(input[offset]) | (flipped(input[offset+1]) << 7) | (as_int(input[offset+2]) << 14);
+                    result |= flipped(input[offset])
+                        | (flipped(input[offset + 1]) << VARINT_BYTE_SHIFT_ONE)
+                        | (asInt(input[offset + 2]) << VARINT_BYTE_SHIFT_TWO);
                 }
             } else {
                 len = 2;
-                result |= flipped(input[offset]) | (as_int(input[offset+1]) << 7);
+                result |= flipped(input[offset])
+                    | (asInt(input[offset + 1]) << VARINT_BYTE_SHIFT_ONE);
             }
         } else {
-            result |= as_int(input[offset]);
+            result |= asInt(input[offset]);
             len = 1;
         }
 
-/*
-        System.out.println();
-        for (int l=0; l<len; l++)
-            System.out.format("Byte Seq: %d - orig:%d as_int:%d flipped:%d\n",l,  input[offset+l], as_int(input[offset + l]), flipped(input[offset+l]));
-*/
-
         offset += len;
-
         return result;
     }
 
-    private byte as_flipped(long v) {
-        return (byte)(v | (1<<7));
-    }
 
-    public byte[] getVarInt(long n) {
+    /**
+     * transforms a long into a varint byte array.
+     * The implementation is based on @mpapadakis varint conversion.
+     * It is hard coded up to 5 bytes long, so it can support 32bit unsigned integers.
+     * Anything more than that and it will blow up in your face.
+     *
+     * @param n the long to be transformed
+     * @return the varint byte array
+     */
+    public static byte[] getVarInt(long n) {
         byte[] result = new byte[0];
-        if (n < (1 << 7)) {
+        if (n < (1 << VARINT_BYTE_SHIFT_ONE)) {
             result = new byte[1];
             result[0] = (byte)n;
-        } else if (n < (1 << 14)) {
+        } else if (n < (1 << VARINT_BYTE_SHIFT_TWO)) {
             result = new byte[2];
-            result[0] = as_flipped(n);
-            result[1] = (byte)(n >> 7);
-        } else if (n < (1 << 21)) {
+            result[0] = asFlipped(n);
+            result[1] = (byte)(n >> VARINT_BYTE_SHIFT_ONE);
+        } else if (n < (1 << VARINT_BYTE_SHIFT_THREE)) {
             result = new byte[3];
-            result[0] = as_flipped(n);
-            result[1] = as_flipped(n >> 7);
-            result[2] = (byte)(n >> 14);
-        } else if (n < (1 << 28)) {
+            result[0] = asFlipped(n);
+            result[1] = asFlipped(n >> VARINT_BYTE_SHIFT_ONE);
+            result[2] = (byte)(n >> VARINT_BYTE_SHIFT_TWO);
+        } else if (n < (1 << VARINT_BYTE_SHIFT_FOUR)) {
             result = new byte[4];
-            result[0] = as_flipped(n);
-            result[1] = as_flipped(n >> 7);
-            result[2] = as_flipped(n >> 14);
-            result[3] = (byte)(n >> 21);
+            result[0] = asFlipped(n);
+            result[1] = asFlipped(n >> VARINT_BYTE_SHIFT_ONE);
+            result[2] = asFlipped(n >> VARINT_BYTE_SHIFT_TWO);
+            result[3] = (byte)(n >> VARINT_BYTE_SHIFT_THREE);
         } else {
             result = new byte[5];
-            result[0] = as_flipped(n);
-            result[1] = as_flipped(n >> 7);
-            result[2] = as_flipped(n >> 14);
-            result[3] = as_flipped(n >> 21);
-            result[4] = (byte)(n >> 28);
+            result[0] = asFlipped(n);
+            result[1] = asFlipped(n >> VARINT_BYTE_SHIFT_ONE);
+            result[2] = asFlipped(n >> VARINT_BYTE_SHIFT_TWO);
+            result[3] = asFlipped(n >> VARINT_BYTE_SHIFT_THREE);
+            result[4] = (byte)(n >> VARINT_BYTE_SHIFT_FOUR);
         }
         return result;
     }
 
+    /**
+     * returns a String using the str8 notation.
+     *
+     * @return a string containing the data.
+     */
     public String getStr8() {
         short len = input[offset];
         offset++;
 
         byte op[] = new byte[len];
-        for (int i=0; i < len; i++) op[i] = input[offset+i];
+        for (int i = 0; i < len; i++) op[i] = input[offset + i];
         offset += len;
         return new String(op);
     }
 
-    public byte[] getStr8(String data) {
+    /**
+     * returns a byte array in str8 notation of the given String.
+     *
+     * @param data the string to encode into a str8
+     * @return a byte array containing the length of the string followed by the data
+     */
+    public static byte[] getStr8(String data) {
         byte len = (byte)(data.length());
-        byte out[] = new byte[len+1];
-        out[0]=len;
-        int i=1;
+        byte out[] = new byte[len + 1];
+        out[0] = len;
+        int i = 1;
         try {
             for (byte b : data.getBytes("ASCII")) out[i++] = b;
         } catch (UnsupportedEncodingException e) {
@@ -162,32 +252,49 @@ public class ByteManipulator {
         return out;
     }
 
+    /**
+     * access method to check the remaining unprocessed amount of bytes
+     *
+     * @return the remaining unprocessed byte count.
+     */
     public int getRemainingLength() {
         return input.length - offset;
     }
 
-    public byte[] unCompress(long len) throws IOException {
-        byte toDC[] = new byte[(int)len];
-        for (int i=0; i<len; i++) toDC[i] = input[offset+i];
-        offset += len;
-        return Snappy.uncompress(toDC);
-    }
-
+    /**
+     * Flushes processed bytes from byte array.
+     */
     public void flushOffset() {
         byte newInput[] = new byte[getRemainingLength()];
-        for (int i=0;i < getRemainingLength() ; i++) newInput[i] = input[offset+i];
+        for (int i = 0; i < getRemainingLength(); i++) {
+            newInput[i] = input[offset + i];
+        }
         input = newInput;
         offset = 0;
     }
 
+    /**
+     * Gets current count of processed bytes.
+     *
+     * @return the count of processed bytes
+     */
     public int getOffset() {
         return offset;
     }
 
+    /**
+     * Resets current processed byte counter.
+     */
     public void resetOffset() {
         offset = 0;
     }
 
     private byte input[];
     private int offset;
+    private static final byte VARINT_BYTE_SHIFT_ONE = 7;
+    private static final byte VARINT_BYTE_SHIFT_TWO = 14;
+    private static final byte VARINT_BYTE_SHIFT_THREE = 21;
+    private static final byte VARINT_BYTE_SHIFT_FOUR = 28;
+    private static final byte VARINT_BYTE_MAX = 127;
+    private static final int BYTE_MAX = 256;
 }

@@ -12,7 +12,6 @@ public class TankClient {
         tankPort = tPort;
         clientReqID = 0;
         log = Logger.getLogger("tankClient");
-        gandalf = new ByteManipulator();
         messages = new ArrayList<TankMessage>();
         reqType = 3;
 
@@ -65,7 +64,7 @@ public class TankClient {
         topics[0] = new Topic(topic, partition, rSeqNum, 20000l);
 
         byte req[] = fetchReq(0l, clientReqID++, "java", 1000l, 0l, topics);
-        byte rsize[] = (gandalf.serialize(req.length-5, 32));
+        byte rsize[] = (ByteManipulator.serialize(req.length-5, 32));
         for (int i=0; i<4; i++) req[i+1] = rsize[i];
         socketOutputStream.write(req);
         poll();
@@ -74,7 +73,7 @@ public class TankClient {
 
     private void poll() throws IOException, TankException {
         messages = new ArrayList<TankMessage>();
-        ByteManipulator input = new ByteManipulator();
+        ByteManipulator input = new ByteManipulator(null);
         int remainder = 0;
         int toRead = 0;
         while (true) {
@@ -219,7 +218,7 @@ public class TankClient {
                 if (compressed == 1) {
                     log.finer("Snappy uncompression");
                     try {
-                        chunkMsgs = new ByteManipulator(input.unCompress(bundleLength-input.getOffset()));
+                        chunkMsgs = new ByteManipulator(input.snappyUncompress(bundleLength-input.getOffset()));
                     } catch (IOException e) {
                         log.log(Level.SEVERE, "ERROR uncompressing", e);
                         return;
@@ -273,7 +272,7 @@ public class TankClient {
 
         topics[0] = new Topic(topic, partition, bun);
         byte req[] = publishReq(0l, clientReqID++, "java", 0, 0l, topics);
-        byte rsize[] = (gandalf.serialize(req.length-5, 32));
+        byte rsize[] = (ByteManipulator.serialize(req.length-5, 32));
         for (int i=0; i<4; i++) req[i+1] = rsize[i];
 
         socketOutputStream.write(req);
@@ -295,13 +294,13 @@ public class TankClient {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         try {
             baos.write((byte)0x2);
-            baos.write(gandalf.serialize(0, 32));
-            baos.write(gandalf.serialize(clientVersion, 16));
-            baos.write(gandalf.serialize(reqID, 32));
-            baos.write(gandalf.getStr8(clientId));
-            baos.write(gandalf.serialize(maxWait, 64));
-            baos.write(gandalf.serialize(minBytes, 32));
-            baos.write(gandalf.serialize(topics.length, 8));
+            baos.write(ByteManipulator.serialize(0, 32));
+            baos.write(ByteManipulator.serialize(clientVersion, 16));
+            baos.write(ByteManipulator.serialize(reqID, 32));
+            baos.write(ByteManipulator.getStr8(clientId));
+            baos.write(ByteManipulator.serialize(maxWait, 64));
+            baos.write(ByteManipulator.serialize(minBytes, 32));
+            baos.write(ByteManipulator.serialize(topics.length, 8));
             for (int i=0; i< topics.length; i++) baos.write(topics[i].serialize());
         } catch (Exception e) {
             log.log(Level.SEVERE, "ERROR creating fetch request", e);
@@ -314,16 +313,16 @@ public class TankClient {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         try {
             baos.write((byte)0x1);
-            baos.write(gandalf.serialize(0, 32));
+            baos.write(ByteManipulator.serialize(0, 32));
 
-            baos.write(gandalf.serialize(clientVersion, 16));
-            baos.write(gandalf.serialize(reqID, 32));
-            baos.write(gandalf.getStr8(clientId));
+            baos.write(ByteManipulator.serialize(clientVersion, 16));
+            baos.write(ByteManipulator.serialize(reqID, 32));
+            baos.write(ByteManipulator.getStr8(clientId));
 
-            baos.write(gandalf.serialize(reqAcks, 8));
-            baos.write(gandalf.serialize(ackTimeout, 32));
+            baos.write(ByteManipulator.serialize(reqAcks, 8));
+            baos.write(ByteManipulator.serialize(ackTimeout, 32));
 
-            baos.write(gandalf.serialize(topics.length, 8));
+            baos.write(ByteManipulator.serialize(topics.length, 8));
             for (int i=0; i< topics.length; i++) baos.write(topics[i].serialize());
 
         } catch (Exception e) {
@@ -371,11 +370,11 @@ public class TankClient {
         Topic(String name,int partition, long seqNum, long fetchSize) {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             try {
-                baos.write(gandalf.getStr8(name));
-                baos.write(gandalf.serialize(1l, 8));
-                baos.write(gandalf.serialize(partition, 16));
-                baos.write(gandalf.serialize(seqNum, 64));
-                baos.write(gandalf.serialize(fetchSize, 32));
+                baos.write(ByteManipulator.getStr8(name));
+                baos.write(ByteManipulator.serialize(1l, 8));
+                baos.write(ByteManipulator.serialize(partition, 16));
+                baos.write(ByteManipulator.serialize(seqNum, 64));
+                baos.write(ByteManipulator.serialize(fetchSize, 32));
             } catch (IOException e) {
                 log.log(Level.SEVERE, "ERROR creating Topic", e);
                 System.exit(1);
@@ -386,11 +385,11 @@ public class TankClient {
         Topic(String name, int partition, Bundle bun) {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             try {
-                baos.write(gandalf.getStr8(name));
-                baos.write(gandalf.serialize(1l, 8));
-                baos.write(gandalf.serialize(partition, 16));
+                baos.write(ByteManipulator.getStr8(name));
+                baos.write(ByteManipulator.serialize(1l, 8));
+                baos.write(ByteManipulator.serialize(partition, 16));
                 byte[] bb = bun.serialize();
-                baos.write(gandalf.getVarInt(bb.length));
+                baos.write(ByteManipulator.getVarInt(bb.length));
                 baos.write(bb);
             } catch (IOException e) {
                 log.log(Level.SEVERE, "ERROR creating Topic", e);
@@ -426,9 +425,9 @@ public class TankClient {
                 byte flags = 0;
                 if (messages.size() <= 15) flags |= (messages.size() << 2);
 
-                baos.write(gandalf.serialize(flags, 8));
+                baos.write(ByteManipulator.serialize(flags, 8));
 
-                if (messages.size() > 15) baos.write(gandalf.getVarInt(messages.size()));
+                if (messages.size() > 15) baos.write(ByteManipulator.getVarInt(messages.size()));
 
                 flags = 0;
                 for (TankMessage tm : messages) baos.write(tm.serialize(flags, ""));
@@ -441,7 +440,6 @@ public class TankClient {
         private ArrayList<TankMessage> messages;
     }
 
-    private ByteManipulator gandalf;
     private String tankHost;
     private int tankPort;
     private int reqSeqNum;
@@ -459,4 +457,9 @@ public class TankClient {
 
     public static final short PUBLISH_REQ = 1;
     public static final short CONSUME_REQ = 2;
+
+    public static final byte U8 = 8;
+    public static final byte U16 = 16;
+    public static final byte U32 = 32;
+    public static final byte U64 = 64;
 }

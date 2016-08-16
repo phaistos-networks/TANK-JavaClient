@@ -18,16 +18,15 @@ public class TankMessage {
 
     public byte[] serialize(byte flags, String key) {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        ByteManipulator gandalf = new ByteManipulator();
         try {
-            baos.write(gandalf.serialize(flags, 8));
+            baos.write(ByteManipulator.serialize(flags, TankClient.U8));
             if ((flags & TankClient.USE_LAST_SPECIFIED_TS) == 0)
-                baos.write(gandalf.serialize(System.currentTimeMillis(), 64));
+                baos.write(ByteManipulator.serialize(System.currentTimeMillis(), TankClient.U64));
 
             if ((flags & TankClient.HAVE_KEY) == 1)
-                baos.write(gandalf.getStr8(key));
+                baos.write(ByteManipulator.getStr8(key));
 
-            baos.write(gandalf.getVarInt(message.length));
+            baos.write(ByteManipulator.getVarInt(message.length));
             baos.write(message);
         } catch (IOException e) {
             System.exit(1);
