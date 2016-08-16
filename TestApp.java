@@ -6,55 +6,51 @@ import gr.phaistosnetworks.TANK.*;
 
 class TestApp {
     public static void main(String[] args) throws Exception {
-        /*
-           byte foo[] = new ByteManipulator().getStr8("Hello World");
-           String myStr8 = new ByteManipulator(foo).getStr8();
-           if (! myStr8.equals("Hello World")) {
-           System.err.println("Str8 conversion is broken");
-           System.exit(1);
-           }
+        byte foo[] = new ByteManipulator().getStr8("Hello World");
+        String myStr8 = new ByteManipulator(foo).getStr8();
+        if (! myStr8.equals("Hello World")) {
+            System.err.println("Str8 conversion is broken");
+            System.exit(1);
+        }
 
-           long[] tVals = new long[9];
-           tVals[0] = 5l;
-           tVals[1] = 180l;
-           tVals[2] = 307l;
-           tVals[3] = 512l;
-           tVals[4] = 1790l;
-           tVals[5] = 23456l;
-           tVals[6] = 9990004l;
-           tVals[7] = 1470905444l;
-           tVals[8] = 1470905444156l;
+        long[] tVals = new long[9];
+        tVals[0] = 5l;
+        tVals[1] = 180l;
+        tVals[2] = 307l;
+        tVals[3] = 512l;
+        tVals[4] = 1790l;
+        tVals[5] = 23456l;
+        tVals[6] = 9990004l;
+        tVals[7] = 1470905444l;
+        tVals[8] = 1470905444156l;
 
 
-           long testOP;
+        long testOP;
         //Test long
         for (long testVal : tVals) {
-        foo = new ByteManipulator().serialize(testVal, 64);
+            foo = new ByteManipulator().serialize(testVal, 64);
 
-        testOP = new ByteManipulator(foo).deSerialize(64);
-        if (testOP != testVal) {
-        System.err.println("deserialization is broken");
-        System.err.println("Expected "+testVal+ " but got "+Long.toString(testOP));
-        System.exit(1);
-        }
+            testOP = new ByteManipulator(foo).deSerialize(64);
+            if (testOP != testVal) {
+                System.err.println("deserialization is broken");
+                System.err.println("Expected "+testVal+ " but got "+Long.toString(testOP));
+                System.exit(1);
+            }
         }
 
         //Test varInt
         for (long testVal : tVals) {
-        if (testVal > 4294967295l)
-        continue;
-        foo = new ByteManipulator().getVarInt(testVal);
-        testOP = new ByteManipulator(foo).getVarInt();
-        if (testOP != testVal) {
-        System.err.println("Varint conversion is broken");
-        System.err.println("Expected "+testVal+ " but got "+testOP);
-        System.exit(1);
-        }
+            if (testVal > 4294967295l)
+                continue;
+            foo = new ByteManipulator().getVarInt(testVal);
+            testOP = new ByteManipulator(foo).getVarInt();
+            if (testOP != testVal) {
+                System.err.println("Varint conversion is broken");
+                System.err.println("Expected "+testVal+ " but got "+testOP);
+                System.exit(1);
+            }
 
         }
-         */
-
-
 
         String host = new String("localhost");
         int port = 11011;

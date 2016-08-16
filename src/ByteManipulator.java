@@ -7,7 +7,7 @@ import org.xerial.snappy.Snappy;
 //http://www.java2s.com/Code/Java/Collections-Data-Structure/ConvertbytearraytoIntegerandLong.htm
 //http://www.tutorialspoint.com/java/java_bitwise_operators_examples.htm
 
-class ByteManipulator {
+public class ByteManipulator {
     public ByteManipulator() {
         offset = 0;
     }
