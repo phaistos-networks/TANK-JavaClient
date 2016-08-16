@@ -8,7 +8,7 @@ import org.xerial.snappy.Snappy;
  * Purpose: To perform magic tricks on bytes.
  * Serializing / deserializing / transforming to and from str8 and varints.
  *
- * @author Robert Krambovitis
+ * @author Robert Krambovitis @rkrambovitis
  */
 public class ByteManipulator {
     /**
