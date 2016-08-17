@@ -3,7 +3,7 @@ Java Client for [TANK](https://github.com/phaistos-networks/TANK).
 
 ## Status ##
 This is a work in progress.  
-Currently only single topic/partition Publish and Consume operations are supported.  
+Currently only single topic/partition Publish and Consume operations are (mostly) supported.  
 
 ## Get ##
 ```bash
@@ -37,4 +37,4 @@ for (TankMessage tm : data) System.out.println(new String(tm.getMessage()));
 https://phaistos-networks.github.io/TANK-JavaClient/
 
 ## License ##
-apache v2.0
+Apache v2.0
