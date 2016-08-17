@@ -26,4 +26,7 @@ TankClient:
 
 #find src/ -type f -name '*.java' | xargs javac -cp .:ext/snappy-java-1.1.2.6.jar -d gr/phaistosnetworks/TANK/
 
+Style:
+	java -jar $(CURDIR)/ext/checkstyle-all-4.4.jar com.puppycrawl.tools.checkstyle.Main -c $(CURDIR)/ext/grade_checks.xml $(SRC)/$(DST)/*.java
+
 .PHONY: doc
