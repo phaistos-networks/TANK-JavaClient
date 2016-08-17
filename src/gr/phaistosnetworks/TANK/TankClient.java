@@ -102,7 +102,7 @@ public class TankClient {
      * if the request was a consume, it will populate ArrayList<TankMessage> messages.
      * else if it was a publish, it will eat fried monkey brains.
      */
-    private void poll() throws IOException, TankException {
+    private void poll() throws TankException, IOException {
         messages = new ArrayList<TankMessage>();
         ByteManipulator input = new ByteManipulator(null);
         int remainder = 0;

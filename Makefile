@@ -20,6 +20,9 @@ clean:
 testApp: TestApp.java
 	$(JAVAC) $(FLAGS) TestApp.java
 
+Test2: Test2.java
+	$(JAVAC) $(FLAGS) Test2.java
+
 TankClient: 
 	mkdir -p $(DST)
 	$(JAVAC) -d . $(FLAGS) $(SRC)/$(DST)/*.java

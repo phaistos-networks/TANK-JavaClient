@@ -20,12 +20,21 @@ What are we talking about ? Tank ? is that some kind of armored vehicle game ?
 Sounds pretty cool.  
 
 ## Usage ##
-```
-System.exit(666);
+### Consume ###
+```java
+TankClient tc = new TankClient(host, port);
+ArrayList<TankMessage> data = tc.consume(topic, partition, sequenceNum);
+for (TankMessage tm : data) System.out.println(new String(tm.getMessage()));
+
 ```
 
-## Status ##
-It doesn't do shit.
+### Publish ###
+```java
+TankClient tc = new TankClient(host, port);
+ArrayList<TankMessage> data = new ArrayList<TankMessage>();
+data.add(new TankMessage(new String("Hello World").getBytes()));
+tc.publish(topic, partition, data);
+```
 
 ## JavaDoc ##
 https://phaistos-networks.github.io/TANK-JavaClient/
