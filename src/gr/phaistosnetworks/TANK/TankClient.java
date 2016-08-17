@@ -344,20 +344,20 @@ public class TankClient {
      *
      * @param clientVersion optional version number
      * @param reqID optional request id
-     * @param cliendID option client ID
+     * @param clientID optional client ID
      * @param maxWait See tank_protocol.md for maxWait semantics.
      * @param minBytes see tank_protocol.md for minBytes semantics.
-     * @param topic array of topics to be serialized.
+     * @param topics array of topics to be serialized.
      * @return a byte array containing the request to be sent to TANK. See tank_protocol.md for details.
      */
-    private byte[] fetchReq(long clientVersion, long reqID, String clientId, long maxWait, long minBytes, Topic[] topics) {
+    private byte[] fetchReq(long clientVersion, long reqID, String clientID, long maxWait, long minBytes, Topic[] topics) {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         try {
             baos.write((byte)0x2);
             baos.write(ByteManipulator.serialize(0, U32));
             baos.write(ByteManipulator.serialize(clientVersion, U16));
             baos.write(ByteManipulator.serialize(reqID, U32));
-            baos.write(ByteManipulator.getStr8(clientId));
+            baos.write(ByteManipulator.getStr8(clientID));
             baos.write(ByteManipulator.serialize(maxWait, U64));
             baos.write(ByteManipulator.serialize(minBytes, U32));
             baos.write(ByteManipulator.serialize(topics.length, U8));
@@ -374,13 +374,13 @@ public class TankClient {
      *
      * @param clientVersion optional version number
      * @param reqID optional request id
-     * @param cliendID option client ID
+     * @param clientID option client ID
      * @param reqAcks number of required acks. Used in clustered mode setups.
      * @param ackTimeout timeout for acks. Used in clustered mode setups.
-     * @param topic array of topics to be serialized.
+     * @param topics array of topics to be serialized.
      * @return a byte array containing the request to be sent to TANK. See tank_protocol.md for details.
      */
-    private byte[] publishReq(long clientVersion, long reqID, String clientId, int reqAcks, long ackTimeout, Topic[] topics) {
+    private byte[] publishReq(long clientVersion, long reqID, String clientID, int reqAcks, long ackTimeout, Topic[] topics) {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         try {
             baos.write((byte)0x1);
@@ -388,7 +388,7 @@ public class TankClient {
 
             baos.write(ByteManipulator.serialize(clientVersion, U16));
             baos.write(ByteManipulator.serialize(reqID, U32));
-            baos.write(ByteManipulator.getStr8(clientId));
+            baos.write(ByteManipulator.getStr8(clientID));
 
             baos.write(ByteManipulator.serialize(reqAcks, U8));
             baos.write(ByteManipulator.serialize(ackTimeout, U32));
