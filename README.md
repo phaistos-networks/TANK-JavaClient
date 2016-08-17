@@ -1,31 +1,20 @@
 # TANK-JavaClient
-Java Client for TANK
+Java Client for [TANK](https://github.com/phaistos-networks/TANK).  
 
-## Disclaimer ##
-Do not use this client in production !!  
-If you do decide to give it a spin, please remember that:  
-1. It _will_ burn your toast in the morning  
-2. It _will_ cause a total irrecoverable outage on your neighbour's wide screen tv  
-3. Your morning coffee will taste worse. However your evening tea might actually taste "fuller"...  
+## Status ##
+This is a work in progress.  
+Currently only single topic/partition Publish and Consume operations are supported.  
 
-*You have been warned.*
-
-If you ignore my warnings and use it anyway, then, just FYI,  
-I didn't actually code this, I just found it on my computer,  
-Well actually it wasn't even my computer, it was a friend's computer,  
-Or a friend's friend's other friend's dog's computer.  
-Oh and btw, my name is actually James, so this Robert person you are looking for, he is not me,  
-he must be someone else, and...   
-What are we talking about ? Tank ? is that some kind of armored vehicle game ?  
-Sounds pretty cool.  
+## Get ##
+```bash
+git clone https://github.com/phaistos-networks/TANK-JavaClient.git
+make TankClient
+```
 
 ## Usage ##
-### Consume ###
+### import ###
 ```java
-TankClient tc = new TankClient(host, port);
-ArrayList<TankMessage> data = tc.consume(topic, partition, sequenceNum);
-for (TankMessage tm : data) System.out.println(new String(tm.getMessage()));
-
+import gr.phaistosnetworks.TANK.*;
 ```
 
 ### Publish ###
@@ -36,7 +25,16 @@ data.add(new TankMessage(new String("Hello World").getBytes()));
 tc.publish(topic, partition, data);
 ```
 
-## JavaDoc ##
+### Consume ###
+```java
+TankClient tc = new TankClient(host, port);
+ArrayList<TankMessage> data = tc.consume(topic, partition, sequenceNum);
+for (TankMessage tm : data) System.out.println(new String(tm.getMessage()));
+
+```
+
+## API ##
 https://phaistos-networks.github.io/TANK-JavaClient/
 
-
+## License ##
+apache v2.0
