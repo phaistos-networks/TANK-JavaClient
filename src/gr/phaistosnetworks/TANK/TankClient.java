@@ -586,14 +586,14 @@ public class TankClient {
 
     public static final byte HAVE_KEY = 1;
     public static final byte USE_LAST_SPECIFIED_TS = 2;
-    public static final long RETRY_INTERVAL = 50;
+    private static final long RETRY_INTERVAL = 50;
 
-    public static final short PUBLISH_REQ = 1;
-    public static final short CONSUME_REQ = 2;
-    public static final short PING_REQ = 3;
+    private static final short PUBLISH_REQ = 1;
+    private static final short CONSUME_REQ = 2;
+    private static final short PING_REQ = 3;
 
-    public static final byte U8 = 8;
-    public static final byte U16 = 16;
-    public static final byte U32 = 32;
-    public static final byte U64 = 64;
+    public static final byte U8 = 1;
+    public static final byte U16 = 2;
+    public static final byte U32 = 3;
+    public static final byte U64 = 4;
 }

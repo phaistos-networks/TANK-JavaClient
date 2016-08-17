@@ -27,4 +27,7 @@ System.exit(666);
 ## Status ##
 It doesn't do shit.
 
+## JavaDoc ##
+https://phaistos-networks.github.io/TANK-JavaClient/
+
 

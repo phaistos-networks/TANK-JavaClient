@@ -50,15 +50,15 @@ public class ByteManipulator {
     }
 
     /**
-     * Uncompress the next len bytes using the snappy library.
+     * Uncompress the next length bytes using the snappy library.
      *
-     * @param len the amount of bytes to uncompress
+     * @param length the amount of bytes to uncompress
      * @return a byte array containing the uncompressed data.
      */
-    public byte[] snappyUncompress(long len) throws IOException {
-        byte toDC[] = new byte[(int)len];
-        for (int i = 0; i < len; i++) toDC[i] = input[offset + i];
-        offset += len;
+    public byte[] snappyUncompress(long length) throws IOException {
+        byte toDC[] = new byte[(int)length];
+        for (int i = 0; i < length; i++) toDC[i] = input[offset + i];
+        offset += length;
         return Snappy.uncompress(toDC);
     }
 
@@ -70,11 +70,10 @@ public class ByteManipulator {
      * @return a byte array that contains the serialized data.
      */
     public static byte[] serialize(long data, int length) {
-        int len = length / Byte.SIZE;
-        byte[] output = new byte[len];
+        byte[] output = new byte[length];
         long shift = 0L;
 
-        for (int i = 0; i < len; i++) {
+        for (int i = 0; i < length; i++) {
             shift = i * Byte.SIZE;
             output[i] = (byte) (data >> shift);
         }
@@ -88,15 +87,14 @@ public class ByteManipulator {
      * @return the long value of those bytes.
      */
     public long deSerialize(int length) {
-        int len = length / Byte.SIZE;
         long result = 0L;
 
-        for (int i = 0, n = 0; i != len; ++i, n += Byte.SIZE) {
+        for (int i = 0, n = 0; i != length; ++i, n += Byte.SIZE) {
             long mask = input[offset + i] & 0xff;
             result |= (mask << n);
         }
 
-        offset += len;
+        offset += length;
         return result;
     }
 
@@ -137,42 +135,42 @@ public class ByteManipulator {
      */
     public long getVarInt() {
         long result = 0;
-        int len = 0;
+        int length = 0;
 
         if (asInt(input[offset]) > VARINT_BYTE_MAX) {
             if (asInt(input[offset + 1]) > VARINT_BYTE_MAX) {
                 if (asInt(input[offset + 2]) > VARINT_BYTE_MAX) {
                     if (asInt(input[offset + 3]) > VARINT_BYTE_MAX) {
-                        len = 5;
+                        length = 5;
                         result |= flipped(input[offset])
                             | (flipped(input[offset + 1]) << VARINT_BYTE_SHIFT_ONE)
                             | (flipped(input[offset + 2]) << VARINT_BYTE_SHIFT_TWO)
                             | (flipped(input[offset + 3]) << VARINT_BYTE_SHIFT_THREE)
                             | (asInt(input[offset + 4]) << VARINT_BYTE_SHIFT_FOUR);
                     } else {
-                        len = 4;
+                        length = 4;
                         result |= flipped(input[offset])
                             | (flipped(input[offset + 1]) << VARINT_BYTE_SHIFT_ONE)
                             | (flipped(input[offset + 2]) << VARINT_BYTE_SHIFT_TWO)
                             | (asInt(input[offset + 3]) << VARINT_BYTE_SHIFT_THREE);
                     }
                 } else {
-                    len = 3;
+                    length = 3;
                     result |= flipped(input[offset])
                         | (flipped(input[offset + 1]) << VARINT_BYTE_SHIFT_ONE)
                         | (asInt(input[offset + 2]) << VARINT_BYTE_SHIFT_TWO);
                 }
             } else {
-                len = 2;
+                length = 2;
                 result |= flipped(input[offset])
                     | (asInt(input[offset + 1]) << VARINT_BYTE_SHIFT_ONE);
             }
         } else {
             result |= asInt(input[offset]);
-            len = 1;
+            length = 1;
         }
 
-        offset += len;
+        offset += length;
         return result;
     }
 
@@ -223,12 +221,12 @@ public class ByteManipulator {
      * @return a string containing the data.
      */
     public String getStr8() {
-        short len = input[offset];
+        short length = input[offset];
         offset++;
 
-        byte op[] = new byte[len];
-        for (int i = 0; i < len; i++) op[i] = input[offset + i];
-        offset += len;
+        byte op[] = new byte[length];
+        for (int i = 0; i < length; i++) op[i] = input[offset + i];
+        offset += length;
         return new String(op);
     }
 
@@ -239,9 +237,9 @@ public class ByteManipulator {
      * @return a byte array containing the length of the string followed by the data
      */
     public static byte[] getStr8(String data) {
-        byte len = (byte)(data.length());
-        byte out[] = new byte[len + 1];
-        out[0] = len;
+        byte length = (byte)(data.length());
+        byte out[] = new byte[length + 1];
+        out[0] = length;
         int i = 1;
         try {
             for (byte b : data.getBytes("ASCII")) out[i++] = b;
