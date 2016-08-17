@@ -59,7 +59,7 @@ class TestApp {
         String arg = new String();
         long id = 0;
         boolean consumate = false, doProduce = false;
-        ArrayList<byte[]> pushData = new ArrayList<byte[]>();
+        ArrayList<TankMessage> pushData = new ArrayList<TankMessage>();
 
         for (int i = 0 ; i < args.length; i++) {
             arg = args[i];
@@ -103,9 +103,9 @@ class TestApp {
                 case "-set":
                 case "-publish":
                     doProduce = true;
-                    pushData = new ArrayList<byte[]>();
+                    pushData = new ArrayList<TankMessage>();
                     for (i++;i<args.length;i++) {
-                        pushData.add(args[i].getBytes(Charset.forName("UTF-8")));
+                        pushData.add(new TankMessage(args[i].getBytes(Charset.forName("UTF-8"))));
                     }
                     break;
             }

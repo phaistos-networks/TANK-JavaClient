@@ -163,7 +163,6 @@ public class TankClient {
      */
     private void getMessages(ByteManipulator input) {
         ArrayList<Chunk> chunkList = new ArrayList<Chunk>();
-        //ArrayList<TankMessage> messages = new ArrayList<TankMessage>();
         // Headers
         long headerSize  = input.deSerialize(U32);
         long reqId = input.deSerialize(U32);
@@ -284,8 +283,9 @@ public class TankClient {
                         log.finer("New Timestamp : " + timestamp);
                     } else log.finer("Using last Timestamp : " + timestamp);
 
+                    String key = new String();
                     if ((flags & HAVE_KEY) == 1) {
-                        String key = chunkMsgs.getStr8();
+                        key = chunkMsgs.getStr8();
                         log.finer("We have a key and it is : " + key);
                     }
 
@@ -294,7 +294,7 @@ public class TankClient {
 
                     byte message[] = chunkMsgs.get((int)contentLength);
                     log.finest(new String(message));
-                    messages.add(new TankMessage(curSeqNum, timestamp, message));
+                    messages.add(new TankMessage(curSeqNum, timestamp, key.getBytes(), message));
                 }
             }
         }
@@ -307,7 +307,7 @@ public class TankClient {
      * @param partition the partition to publish to
      * @param msgs the ArrayList of messages to publish
      */
-    public void publish(String topic, int partition, ArrayList<byte[]> msgs) throws IOException, TankException {
+    public void publish(String topic, int partition, ArrayList<TankMessage> msgs) throws IOException, TankException {
         log.fine("Received pub req with " + msgs.size() + " messages");
         reqType = TankClient.PUBLISH_REQ;
 
@@ -521,20 +521,14 @@ public class TankClient {
      * see tank_encoding.md for chunk details.
      */
     private class Bundle {
-    /*
-        private Bundle() {
-            messages = new ArrayList<TankMessage>();
-        }
-        */
 
         /**
          * constructor for new bundle given ArrayList of byte[] messages
          *
          * @param msgs the messages to be included in the bundle
          */
-        private Bundle(ArrayList<byte[]> msgs) {
-            messages = new ArrayList<TankMessage>();
-            for (byte[] m : msgs) addMsg(new TankMessage(0L, m));
+        private Bundle(ArrayList<TankMessage> msgs) {
+            messages = msgs;
         }
 
         /**
@@ -562,8 +556,7 @@ public class TankClient {
 
                 if (messages.size() > 15) baos.write(ByteManipulator.getVarInt(messages.size()));
 
-                flags = 0;
-                for (TankMessage tm : messages) baos.write(tm.serialize(flags, ""));
+                for (TankMessage tm : messages) baos.write(tm.serialize(false));
             } catch (IOException e) {
                 log.log(Level.SEVERE, "ERROR creating Topic", e);
                 System.exit(1);
