@@ -594,6 +594,6 @@ public class TankClient {
 
     public static final byte U8 = 1;
     public static final byte U16 = 2;
-    public static final byte U32 = 3;
-    public static final byte U64 = 4;
+    public static final byte U32 = 4;
+    public static final byte U64 = 8;
 }
