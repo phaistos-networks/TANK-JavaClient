@@ -1,5 +1,0 @@
-*.class
-src/*.class
-*.md
-.git
-.gitignore
