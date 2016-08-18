@@ -8,7 +8,7 @@ PACKAGE= gr.phaistosnetworks.TANK
 CPATH= $(CURDIR):$(CURDIR)/ext/snappy-java-1.1.2.6.jar
 FLAGS= -Xdiags:verbose -Xlint:unchecked -Xlint:deprecation -cp $(CPATH)
 
-all:	TankClient testApp doc
+all:	TankClient testApp
 
 doc: 	
 	mkdir -p $(DOC)
