@@ -29,6 +29,7 @@ public class TankClient {
         log = Logger.getLogger("tankClient");
         messages = new ArrayList<TankMessage>();
         reqType = PING_REQ;
+        fetchSize = 20000L;
 
         try {
             while (true) {
@@ -84,7 +85,7 @@ public class TankClient {
         reqType = TankClient.CONSUME_REQ;
 
         Topic topics[] = new Topic[1];
-        topics[0] = new Topic(topic, partition, rSeqNum, 20000L);
+        topics[0] = new Topic(topic, partition, rSeqNum, fetchSize);
 
         byte req[] = fetchReq(0L, clientReqID++, "java", 1000L, 0L, topics);
         byte rsize[] = (ByteManipulator.serialize(req.length - U8 - U32, U32));
@@ -225,6 +226,10 @@ public class TankClient {
                 log.finer("Bundle length : " + bundleLength);
                 if (bundleLength > input.getRemainingLength()) {
                     log.fine("Bundle Incomplete (remaining bytes: " + input.getRemainingLength() + ")");
+                    if (bundleLength > fetchSize) {
+                        fetchSize = bundleLength + FETCH_SIZE_LEEWAY;
+                        log.info("Increasing fetchSize to "+fetchSize);
+                    }
                     return;
                 }
                 input.flushOffset();
@@ -465,16 +470,16 @@ public class TankClient {
          * @param name topic name
          * @param partition partition id
          * @param seqNum request sequence number
-         * @param fetchSize see TANK tank_protocol.md for fetch fize semantics
+         * @param fSize see TANK tank_protocol.md for fetch fize semantics
          */
-        private Topic(String name, int partition, long seqNum, long fetchSize) {
+        private Topic(String name, int partition, long seqNum, long fSize) {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             try {
                 baos.write(ByteManipulator.getStr8(name));
                 baos.write(ByteManipulator.serialize(1L, U8));
                 baos.write(ByteManipulator.serialize(partition, U16));
                 baos.write(ByteManipulator.serialize(seqNum, U64));
-                baos.write(ByteManipulator.serialize(fetchSize, U32));
+                baos.write(ByteManipulator.serialize(fSize, U32));
             } catch (IOException e) {
                 log.log(Level.SEVERE, "ERROR creating Topic", e);
                 System.exit(1);
@@ -576,6 +581,8 @@ public class TankClient {
     private int clientReqID;
     private ArrayList<TankMessage> messages;
     private short reqType;
+    private long fetchSize;
+    private static final long FETCH_SIZE_LEEWAY = 10000L;
 
     public static final byte HAVE_KEY = 1;
     public static final byte USE_LAST_SPECIFIED_TS = 2;
