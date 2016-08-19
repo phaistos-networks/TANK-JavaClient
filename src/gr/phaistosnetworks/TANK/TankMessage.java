@@ -55,6 +55,7 @@ public class TankMessage {
      * serialize tank message into byte array.
      *
      * @param useLastTS set current timestamp or skip and use last set TS
+     * @return serialized byte array
      */
     public byte[] serialize(boolean useLastTS) throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();

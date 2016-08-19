@@ -29,7 +29,6 @@ public class TankClient {
         log = Logger.getLogger("tankClient");
         messages = new ArrayList<TankMessage>();
         reqType = PING_REQ;
-        fetchSize = 20000L;
 
         try {
             while (true) {
@@ -87,7 +86,7 @@ public class TankClient {
         Topic topics[] = new Topic[1];
         topics[0] = new Topic(topic, partition, rSeqNum, fetchSize);
 
-        byte req[] = fetchReq(0L, clientReqID++, "java", 1000L, 0L, topics);
+        byte req[] = fetchReq(0L, clientReqID++, topics);
         byte rsize[] = (ByteManipulator.serialize(req.length - U8 - U32, U32));
         for (int i = 0; i < 4; i++) req[i + 1] = rsize[i];
         socketOutputStream.write(req);
@@ -182,7 +181,7 @@ public class TankClient {
             log.fine("Total Partitions: " + totalPartitions);
 
             int partition = (int)input.deSerialize(U16);
-            if (partition == 65535) {
+            if (partition == U16_MAX) {
                 log.warning("Topic " + topic + " Not Found ");
                 continue;
             } else {
@@ -241,7 +240,7 @@ public class TankClient {
                     log.fine("Bundle Incomplete (remaining bytes: " + input.getRemainingLength() + ")");
                     if (bundleLength > fetchSize) {
                         fetchSize = bundleLength + FETCH_SIZE_LEEWAY;
-                        log.info("Increasing fetchSize to "+fetchSize);
+                        log.info("Increasing fetchSize to " + fetchSize);
                     }
                     return;
                 }
@@ -335,7 +334,7 @@ public class TankClient {
         Bundle bun = new Bundle(msgs);
 
         topics[0] = new Topic(topic, partition, bun);
-        byte req[] = publishReq(0L, clientReqID++, "java", 0, 0L, topics);
+        byte req[] = publishReq(0L, clientReqID++, 0, 0L, topics);
         byte rsize[] = (ByteManipulator.serialize(req.length - 5, U32));
         for (int i = 0; i < 4; i++) req[i + 1] = rsize[i];
 
@@ -364,13 +363,10 @@ public class TankClient {
      *
      * @param clientVersion optional version number
      * @param reqID optional request id
-     * @param clientID optional client ID
-     * @param maxWait See tank_protocol.md for maxWait semantics.
-     * @param minBytes see tank_protocol.md for minBytes semantics.
      * @param topics array of topics to be serialized.
      * @return a byte array containing the request to be sent to TANK. See tank_protocol.md for details.
      */
-    private byte[] fetchReq(long clientVersion, long reqID, String clientID, long maxWait, long minBytes, Topic[] topics) {
+    private byte[] fetchReq(long clientVersion, long reqID, Topic[] topics) {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         try {
             baos.write((byte)0x2);
@@ -394,13 +390,12 @@ public class TankClient {
      *
      * @param clientVersion optional version number
      * @param reqID optional request id
-     * @param clientID option client ID
      * @param reqAcks number of required acks. Used in clustered mode setups.
      * @param ackTimeout timeout for acks. Used in clustered mode setups.
      * @param topics array of topics to be serialized.
      * @return a byte array containing the request to be sent to TANK. See tank_protocol.md for details.
      */
-    private byte[] publishReq(long clientVersion, long reqID, String clientID, int reqAcks, long ackTimeout, Topic[] topics) {
+    private byte[] publishReq(long clientVersion, long reqID, int reqAcks, long ackTimeout, Topic[] topics) {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         try {
             baos.write((byte)0x1);
@@ -546,6 +541,11 @@ public class TankClient {
             return seqNum;
         }
 
+        /**
+         * access method to get the topic name
+         *
+         * @return the topic name
+         */
         public String getName() {
             return name;
         }
@@ -604,6 +604,53 @@ public class TankClient {
         private ArrayList<TankMessage> messages;
     }
 
+
+    /**
+     * See TANK tank_protocol.md for maxWait semantics
+     *
+     * @return the maxWait to wait for (ms) (default 5s)
+     */
+    public long getFetchRespMaxWait() {
+        return maxWait;
+    }
+
+    /**
+     * See TANK tank_protocol.md for maxWait semantics
+     *
+     * @param b the maxWait to wait for (ms)
+     */
+    public void setFetchRespMaxWait(long b) {
+        maxWait = b;
+    }
+
+    /**
+     * See TANK tank_protocol.md for minBytes semantics
+     *
+     * @return the minBytes to wait for (default 20k)
+     */
+    public long getFetchRespMinBytes() {
+        return minBytes;
+    }
+
+    /**
+     * See TANK tank_protocol.md for minBytes semantics
+     *
+     * @param b the minBytes to wait for
+     */
+    public void setFetchRespMinBytes(long b) {
+        minBytes = b;
+    }
+
+    /**
+     * Set the client identification string (optional) for requests.
+     * See tank_protocol.md for details
+     *
+     * @param cid the client id
+     */
+    public void setClientID(String cid) {
+        clientID = cid;
+    }
+
     private String tankHost;
     private int tankPort;
     private int reqSeqNum;
@@ -614,8 +661,13 @@ public class TankClient {
     private int clientReqID;
     private ArrayList<TankMessage> messages;
     private short reqType;
-    private long fetchSize;
+    private long fetchSize = 20000L;
+    private long maxWait = 5000L;
+    private long minBytes = 0L;
+    private String clientID = "JC01";
+
     private static final long FETCH_SIZE_LEEWAY = 10000L;
+    private static final int U16_MAX = 65535;
 
     public static final byte HAVE_KEY = 1;
     public static final byte USE_LAST_SPECIFIED_TS = 2;
