@@ -91,7 +91,7 @@ public class TankClient {
         byte rsize[] = (ByteManipulator.serialize(req.length - U8 - U32, U32));
         for (int i = 0; i < 4; i++) req[i + 1] = rsize[i];
         socketOutputStream.write(req);
-        poll();
+        poll(topics);
         return messages;
     }
 
@@ -102,8 +102,10 @@ public class TankClient {
      * then it will loop and append until payload size is reached.
      * if the request was a consume, it will populate ArrayList<TankMessage> messages.
      * else if it was a publish, it will eat fried monkey brains.
+     *
+     * @param topics the requested topics, used to crosscheck min rSeqNum between request and response.
      */
-    private void poll() throws TankException, IOException {
+    private void poll(Topic[] topics) throws TankException, IOException {
         messages = new ArrayList<TankMessage>();
         ByteManipulator input = new ByteManipulator(null);
         int remainder = 0;
@@ -148,7 +150,7 @@ public class TankClient {
             log.fine("resp: " + resp);
             log.fine("payload size: " + payloadSize);
 
-            if (reqType == TankClient.CONSUME_REQ) getMessages(input);
+            if (reqType == TankClient.CONSUME_REQ) getMessages(input, topics);
             else if (reqType == TankClient.PUBLISH_REQ) getPubResponse(input);
 
             for (Handler h : log.getHandlers()) h.flush();
@@ -161,8 +163,9 @@ public class TankClient {
      * Populates ArrayList<TankMessage> messages.
      *
      * @param input the ByteManipulator object that contains the bytes received from server.
+     * @param topics the request topics. Used to crosscheck between request and response.
      */
-    private void getMessages(ByteManipulator input) {
+    private void getMessages(ByteManipulator input, Topic[] topics) {
         ArrayList<Chunk> chunkList = new ArrayList<Chunk>();
         // Headers
         long headerSize  = input.deSerialize(U32);
@@ -220,7 +223,11 @@ public class TankClient {
         //Chunks
         long curSeqNum = 0;
         long bundleLength = 0;
+        long minSeqNum = 0L;
         for (Chunk c : chunkList) {
+            for (Topic t : topics) {
+                if (t.getName().equals(c.topic)) minSeqNum = t.getRSeqNum();
+            }
             while (input.getRemainingLength() > 0) {
                 log.finer("Remaining Length: " + input.getRemainingLength());
                 try {
@@ -305,7 +312,9 @@ public class TankClient {
 
                     byte message[] = chunkMsgs.get((int)contentLength);
                     log.finest(new String(message));
-                    messages.add(new TankMessage(curSeqNum, timestamp, key.getBytes(), message));
+
+                    // Don't save the message if it has a sequence number lower than we requested.
+                    if (curSeqNum >= minSeqNum) messages.add(new TankMessage(curSeqNum, timestamp, key.getBytes(), message));
                 }
             }
         }
@@ -331,7 +340,7 @@ public class TankClient {
         for (int i = 0; i < 4; i++) req[i + 1] = rsize[i];
 
         socketOutputStream.write(req);
-        poll();
+        poll(topics);
     }
 
     /**
@@ -473,13 +482,15 @@ public class TankClient {
         /**
          * constructor for topic used in fetch request.
          *
-         * @param name topic name
+         * @param tName topic name
          * @param partition partition id
-         * @param seqNum request sequence number
+         * @param rSeqNum request sequence number
          * @param fSize see TANK tank_protocol.md for fetch fize semantics
          */
-        private Topic(String name, int partition, long seqNum, long fSize) {
+        private Topic(String tName, int partition, long rSeqNum, long fSize) {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            seqNum = rSeqNum;
+            name = tName;
             try {
                 baos.write(ByteManipulator.getStr8(name));
                 baos.write(ByteManipulator.serialize(1L, U8));
@@ -496,14 +507,15 @@ public class TankClient {
         /**
          * constructor for topic used in publish request.
          *
-         * @param name topic name
+         * @param tName topic name
          * @param partition partition id
          * @param bun bundle to publish. See TANK tank_encoding.md
          */
-        private Topic(String name, int partition, Bundle bun) {
+        private Topic(String tName, int partition, Bundle bun) {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            name = tName;
             try {
-                baos.write(ByteManipulator.getStr8(name));
+                baos.write(ByteManipulator.getStr8(tName));
                 baos.write(ByteManipulator.serialize(1L, U8));
                 baos.write(ByteManipulator.serialize(partition, U16));
                 byte[] bb = bun.serialize();
@@ -525,6 +537,21 @@ public class TankClient {
             return topic;
         }
 
+        /**
+         * access method to get request Seq Num
+         *
+         * @return sequence Number
+         */
+        public long getRSeqNum() {
+            return seqNum;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        private String name;
+        private long seqNum;
         private byte topic[];
     }
 

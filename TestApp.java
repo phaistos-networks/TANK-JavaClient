@@ -122,7 +122,6 @@ class TestApp {
                     System.out.println("seq: " + tm.getSeqID() + " ts: "+tm.getTimestamp()+" message: " + new String(tm.getMessage()));
                     id = tm.getSeqID()+1;
                 }
-                Thread.sleep(50);
             }
         }
     }
