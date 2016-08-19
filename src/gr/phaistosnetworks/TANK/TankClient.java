@@ -139,7 +139,7 @@ public class TankClient {
             }
 
             if (payloadSize > input.getRemainingLength()) {
-                log.warning("Received packet incomplete ");
+                log.info("Received packet incomplete ");
                 remainder = (int)(payloadSize - input.getRemainingLength());
                 input.resetOffset();
                 continue;
@@ -219,10 +219,16 @@ public class TankClient {
 
         //Chunks
         long curSeqNum = 0;
+        long bundleLength = 0;
         for (Chunk c : chunkList) {
             while (input.getRemainingLength() > 0) {
                 log.finer("Remaining Length: " + input.getRemainingLength());
-                long bundleLength = input.getVarInt();
+                try {
+                    bundleLength = input.getVarInt();
+                } catch (ArrayIndexOutOfBoundsException e) {
+                    log.info("Bundle length varint incomplete");
+                    return;
+                }
                 log.finer("Bundle length : " + bundleLength);
                 if (bundleLength > input.getRemainingLength()) {
                     log.fine("Bundle Incomplete (remaining bytes: " + input.getRemainingLength() + ")");
