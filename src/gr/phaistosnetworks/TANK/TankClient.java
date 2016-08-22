@@ -257,9 +257,9 @@ public class TankClient {
 
                 byte flags = (byte)input.deSerialize(U8);
                 // See TANK tank_encoding.md for flags
-                long messageCount = (flags >> 2) & U1_MAX;
+                long messageCount = (flags >> 2) & 0xF;
                 long compressed = flags & 0x3;
-                long sparse = (flags >> 6) & U1_MAX;
+                long sparse = (flags >> 6) & 0xF;
                 log.finer("Bundle compressed : " + compressed);
                 log.finer("Bundle SPARSE : " + sparse);
 
@@ -598,11 +598,11 @@ public class TankClient {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             try {
                 byte flags = 0;
-                if (messages.size() <= U2_MAX) flags |= (messages.size() << 2);
+                if (messages.size() <= U4_MAX) flags |= (messages.size() << 2);
 
                 baos.write(ByteManipulator.serialize(flags, U8));
 
-                if (messages.size() > U2_MAX) baos.write(ByteManipulator.getVarInt(messages.size()));
+                if (messages.size() > U4_MAX) baos.write(ByteManipulator.getVarInt(messages.size()));
 
                 for (TankMessage tm : messages) baos.write(tm.serialize(false));
             } catch (Exception e) {
@@ -679,8 +679,7 @@ public class TankClient {
     private static final long FETCH_SIZE_LEEWAY = 10000L;
     private static final int U16_MAX = 65535;
     private static final int U8_MAX = 255;
-    private static final int U2_MAX = 15;
-    private static final int U1_MAX = 7;
+    private static final int U4_MAX = 15;
 
     public static final byte HAVE_KEY = 1;
     public static final byte USE_LAST_SPECIFIED_TS = 2;
