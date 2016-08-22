@@ -105,7 +105,7 @@ class TestApp {
                     doProduce = true;
                     pushData = new ArrayList<TankMessage>();
                     for (i++;i<args.length;i++) {
-                        pushData.add(new TankMessage(args[i].getBytes(Charset.forName("UTF-8"))));
+                        pushData.add(new TankMessage(new String("lalaKey").getBytes(), args[i].getBytes(Charset.forName("UTF-8"))));
                     }
                     break;
             }
