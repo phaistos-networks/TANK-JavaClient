@@ -125,7 +125,7 @@ public class ByteManipulator {
      * @return positive integer value of that byte.
      */
     private int asInt(int v) {
-        return v < 0 ? (v + BYTE_MAX) : v;
+        return v < 0 ? (v + BYTE_MAX + 1) : v;
     }
 
     /**
@@ -184,7 +184,9 @@ public class ByteManipulator {
      * @param n the long to be transformed
      * @return the varint byte array
      */
-    public static byte[] getVarInt(long n) {
+    public static byte[] getVarInt(long n) throws TankException {
+        if (n > UINT32_MAX) throw new TankException("Number Too Large (max " + UINT32_MAX + "): " + n);
+
         byte[] result = new byte[0];
         if (n < (1 << VARINT_BYTE_SHIFT_ONE)) {
             result = new byte[1];
@@ -221,7 +223,7 @@ public class ByteManipulator {
      * @return a string containing the data.
      */
     public String getStr8() {
-        short length = input[offset];
+        int length = asInt(input[offset]);
         offset++;
 
         byte op[] = new byte[length];
@@ -236,10 +238,11 @@ public class ByteManipulator {
      * @param data the string to encode into a str8
      * @return a byte array containing the length of the string followed by the data
      */
-    public static byte[] getStr8(String data) {
-        byte length = (byte)(data.length());
+    public static byte[] getStr8(String data) throws TankException {
+        if (data.length() > BYTE_MAX) throw new TankException("Str8 too long (max " + BYTE_MAX + " chars): " + data);
+        int length = data.length();
         byte out[] = new byte[length + 1];
-        out[0] = length;
+        out[0] = (byte)length;
         int i = 1;
         try {
             for (byte b : data.getBytes("ASCII")) out[i++] = b;
@@ -294,5 +297,6 @@ public class ByteManipulator {
     private static final byte VARINT_BYTE_SHIFT_THREE = 21;
     private static final byte VARINT_BYTE_SHIFT_FOUR = 28;
     private static final byte VARINT_BYTE_MAX = 127;
-    private static final int BYTE_MAX = 256;
+    private static final int BYTE_MAX = 255;
+    private static final long UINT32_MAX = 4294967295L;
 }

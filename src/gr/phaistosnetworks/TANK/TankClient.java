@@ -492,7 +492,7 @@ public class TankClient {
                 baos.write(ByteManipulator.serialize(partition, U16));
                 baos.write(ByteManipulator.serialize(seqNum, U64));
                 baos.write(ByteManipulator.serialize(fSize, U32));
-            } catch (IOException e) {
+            } catch (Exception e) {
                 log.log(Level.SEVERE, "ERROR creating Topic", e);
                 System.exit(1);
             }
@@ -516,7 +516,7 @@ public class TankClient {
                 byte[] bb = bun.serialize();
                 baos.write(ByteManipulator.getVarInt(bb.length));
                 baos.write(bb);
-            } catch (IOException e) {
+            } catch (Exception e) {
                 log.log(Level.SEVERE, "ERROR creating Topic", e);
                 System.exit(1);
             }
@@ -595,7 +595,7 @@ public class TankClient {
                 if (messages.size() > 15) baos.write(ByteManipulator.getVarInt(messages.size()));
 
                 for (TankMessage tm : messages) baos.write(tm.serialize(false));
-            } catch (IOException e) {
+            } catch (Exception e) {
                 log.log(Level.SEVERE, "ERROR creating Topic", e);
                 System.exit(1);
             }

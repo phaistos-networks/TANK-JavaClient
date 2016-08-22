@@ -6,11 +6,24 @@ import gr.phaistosnetworks.TANK.*;
 
 class TestApp {
     public static void main(String[] args) throws Exception {
-        byte foo[] = ByteManipulator.getStr8("Hello World");
-        String myStr8 = new ByteManipulator(foo).getStr8();
-        if (! myStr8.equals("Hello World")) {
-            System.err.println("Str8 conversion is broken");
-            System.exit(1);
+        byte foo[];
+        String [] testStrings = new String[3];
+        testStrings[0] = "Hello World";
+        testStrings[1] = "Here is the super long string that should make my str8 implementation explode. How many chars can 1 byte enumerate anyway? How about a spider bite. That has 8 legs and maybe 8 eyes. It may have spider sense too. yada yada bladi blah Llanfairpwllgwyngyllgogerychwyrndrobwllllantysiliogogogoch";
+        testStrings[2] = "";
+
+        for (String testString : testStrings) {
+            try {
+                foo = ByteManipulator.getStr8(testString);
+                String myStr8 = new ByteManipulator(foo).getStr8();
+                if (! myStr8.equals(testString)) {
+                    System.err.println("Str8 conversion is broken");
+                    System.err.println("Expected:"+testString+"\n but got:"+myStr8);
+                    System.exit(1);
+                }
+            } catch (TankException te) {
+                System.err.println(te.getMessage());
+            }
         }
 
         long[] tVals = new long[9];
@@ -24,7 +37,6 @@ class TestApp {
         tVals[7] = 1470905444l;
         tVals[8] = 1470905444156l;
 
-
         long testOP;
         //Test long
         for (long testVal : tVals) {
@@ -33,21 +45,23 @@ class TestApp {
             testOP = new ByteManipulator(foo).deSerialize(64);
             if (testOP != testVal) {
                 System.err.println("deserialization is broken");
-                System.err.println("Expected "+testVal+ " but got "+Long.toString(testOP));
+                System.err.println("Expected:"+testVal+ " but got:"+Long.toString(testOP));
                 System.exit(1);
             }
         }
 
         //Test varInt
         for (long testVal : tVals) {
-            if (testVal > 4294967295l)
-                continue;
-            foo = ByteManipulator.getVarInt(testVal);
-            testOP = new ByteManipulator(foo).getVarInt();
-            if (testOP != testVal) {
-                System.err.println("Varint conversion is broken");
-                System.err.println("Expected "+testVal+ " but got "+testOP);
-                System.exit(1);
+            try {
+                foo = ByteManipulator.getVarInt(testVal);
+                testOP = new ByteManipulator(foo).getVarInt();
+                if (testOP != testVal) {
+                    System.err.println("Varint conversion is broken");
+                    System.err.println("Expected:"+testVal+ "\n but got:"+testOP);
+                    System.exit(1);
+                }
+            } catch (TankException te) {
+                System.err.println(te.getMessage());
             }
 
         }
