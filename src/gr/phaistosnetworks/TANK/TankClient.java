@@ -88,7 +88,7 @@ public class TankClient {
 
         byte req[] = fetchReq(0L, clientReqID++, topics);
         byte rsize[] = (ByteManipulator.serialize(req.length - U8 - U32, U32));
-        for (int i = 0; i < 4; i++) req[i + 1] = rsize[i];
+        for (int i = 0; i < U32; i++) req[i + 1] = rsize[i];
         socketOutputStream.write(req);
         poll(topics);
         return messages;
@@ -149,7 +149,7 @@ public class TankClient {
             log.fine("resp: " + resp);
             log.fine("payload size: " + payloadSize);
 
-            if (reqType == TankClient.CONSUME_REQ) getMessages(input, topics);
+            if (reqType == TankClient.CONSUME_REQ) processMessages(input, topics);
             else if (reqType == TankClient.PUBLISH_REQ) getPubResponse(input);
 
             for (Handler h : log.getHandlers()) h.flush();
@@ -158,13 +158,12 @@ public class TankClient {
     }
 
     /**
-     * Processes the input received from tank server.
-     * Populates ArrayList<TankMessage> messages.
+     * Processes the headers of the input received from tank server.
      *
      * @param input the ByteManipulator object that contains the bytes received from server.
      * @param topics the request topics. Used to crosscheck between request and response.
      */
-    private void getMessages(ByteManipulator input, Topic[] topics) {
+    private void processMessages(ByteManipulator input, Topic[] topics) {
         ArrayList<Chunk> chunkList = new ArrayList<Chunk>();
         // Headers
         long headerSize  = input.deSerialize(U32);
@@ -218,7 +217,17 @@ public class TankClient {
                 }
             }
         }
+        processChunks(input, topics, chunkList);
+    }
 
+    /**
+     * Processes the chunks of the input received from tank server.
+     *
+     * @param input the ByteManipulator object that contains the bytes received from server.
+     * @param topics the request topics. Used to crosscheck between request and response.
+     * @param chunkList the chunkList as read from headers.
+     */
+    private void processChunks(ByteManipulator input, Topic[] topics, ArrayList<Chunk> chunkList) {
         //Chunks
         long curSeqNum = 0;
         long bundleLength = 0;
@@ -247,9 +256,10 @@ public class TankClient {
                 input.flushOffset();
 
                 byte flags = (byte)input.deSerialize(U8);
-                long messageCount = (flags >> 2) & 0xf;
+                // See TANK tank_encoding.md for flags
+                long messageCount = (flags >> 2) & U1_MAX;
                 long compressed = flags & 0x3;
-                long sparse = (flags >> 6) & 0xf;
+                long sparse = (flags >> 6) & U1_MAX;
                 log.finer("Bundle compressed : " + compressed);
                 log.finer("Bundle SPARSE : " + sparse);
 
@@ -336,7 +346,7 @@ public class TankClient {
         topics[0] = new Topic(topic, partition, bun);
         byte req[] = publishReq(0L, clientReqID++, 0, 0L, topics);
         byte rsize[] = (ByteManipulator.serialize(req.length - 5, U32));
-        for (int i = 0; i < 4; i++) req[i + 1] = rsize[i];
+        for (int i = 0; i < U32; i++) req[i + 1] = rsize[i];
 
         socketOutputStream.write(req);
         poll(topics);
@@ -430,9 +440,9 @@ public class TankClient {
             if (av == 0) return false;
 
             byte b = (byte)bis.read();
-            if (b != 0x3) return false;
+            if (b != PING_REQ) return false;
             // payload size:u32 is 0 for ping
-            bis.skip(4);
+            bis.skip(U32);
         } catch (Exception e) {
             log.log(Level.SEVERE, "ERROR getting ping", e);
             return false;
@@ -670,6 +680,7 @@ public class TankClient {
     private static final int U16_MAX = 65535;
     private static final int U8_MAX = 255;
     private static final int U2_MAX = 15;
+    private static final int U1_MAX = 7;
 
     public static final byte HAVE_KEY = 1;
     public static final byte USE_LAST_SPECIFIED_TS = 2;
