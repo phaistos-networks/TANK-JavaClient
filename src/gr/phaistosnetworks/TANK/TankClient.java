@@ -193,13 +193,13 @@ public class TankClient {
                     log.fine("Partition : " + partition);
                     log.fine(String.format("ErrorOrFlags : %x\n", errorOrFlags));
 
-                    if ((errorOrFlags & 0xFF) == 0xFF) {
+                    if ((errorOrFlags & U8_MAX) == U8_MAX) {
                         log.warning("Unknown Partition");
                         continue;
                     }
 
                     long baseAbsSeqNum = 0L;
-                    if ((errorOrFlags & 0xFF) != 0xFE) {
+                    if ((errorOrFlags & U8_MAX) != 0xFE) {
                         baseAbsSeqNum = input.deSerialize(U64);
                         log.fine("Base Abs Seq Num : " + baseAbsSeqNum);
                     }
@@ -350,7 +350,7 @@ public class TankClient {
     private void getPubResponse(ByteManipulator input) throws TankException {
         log.fine("request ID: " + input.deSerialize(U32));
         long error = input.deSerialize(U8);
-        if (error == 0xff) {
+        if (error == U8_MAX) {
             log.fine("Topic Error: " + error);
             log.severe("Error, Topic not found");
             throw new TankException("Topic Error: " + error);
@@ -588,11 +588,11 @@ public class TankClient {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             try {
                 byte flags = 0;
-                if (messages.size() <= 15) flags |= (messages.size() << 2);
+                if (messages.size() <= U2_MAX) flags |= (messages.size() << 2);
 
                 baos.write(ByteManipulator.serialize(flags, U8));
 
-                if (messages.size() > 15) baos.write(ByteManipulator.getVarInt(messages.size()));
+                if (messages.size() > U2_MAX) baos.write(ByteManipulator.getVarInt(messages.size()));
 
                 for (TankMessage tm : messages) baos.write(tm.serialize(false));
             } catch (Exception e) {
@@ -668,6 +668,8 @@ public class TankClient {
 
     private static final long FETCH_SIZE_LEEWAY = 10000L;
     private static final int U16_MAX = 65535;
+    private static final int U8_MAX = 255;
+    private static final int U2_MAX = 15;
 
     public static final byte HAVE_KEY = 1;
     public static final byte USE_LAST_SPECIFIED_TS = 2;

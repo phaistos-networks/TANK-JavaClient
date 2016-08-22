@@ -66,10 +66,7 @@ public class TankMessage {
         baos.write(ByteManipulator.serialize(flags, TankClient.U8));
 
         if (!useLastTS) baos.write(ByteManipulator.serialize(System.currentTimeMillis(), TankClient.U64));
-        if (haveKey) {
-            baos.write(key.length);
-            baos.write(key);
-        }
+        if (haveKey) baos.write(ByteManipulator.getStr8(key));
 
         baos.write(ByteManipulator.getVarInt(message.length));
         baos.write(message);

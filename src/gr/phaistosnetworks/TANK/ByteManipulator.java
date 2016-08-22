@@ -90,7 +90,7 @@ public class ByteManipulator {
         long result = 0L;
 
         for (int i = 0, n = 0; i != length; ++i, n += Byte.SIZE) {
-            long mask = input[offset + i] & 0xff;
+            long mask = input[offset + i] & BYTE_MAX;
             result |= (mask << n);
         }
 
@@ -238,18 +238,23 @@ public class ByteManipulator {
      * @param data the string to encode into a str8
      * @return a byte array containing the length of the string followed by the data
      */
-    public static byte[] getStr8(String data) throws TankException {
-        if (data.length() > BYTE_MAX) throw new TankException("Str8 too long (max " + BYTE_MAX + " chars): " + data);
-        int length = data.length();
+    public static byte[] getStr8(String data) throws TankException, UnsupportedEncodingException {
+        return getStr8(data.getBytes("ASCII"));
+    }
+
+    /**
+     * returns a byte array in str8 notation of the given byte[].
+     *
+     * @param data the byte[] to encode into a str8
+     * @return a byte array containing the length of the string followed by the data
+     */
+    public static byte[] getStr8(byte[] data) throws TankException {
+        if (data.length > BYTE_MAX) throw new TankException("Str8 too long (max " + BYTE_MAX + " chars): " + new String(data));
+        int length = data.length;
         byte out[] = new byte[length + 1];
         out[0] = (byte)length;
         int i = 1;
-        try {
-            for (byte b : data.getBytes("ASCII")) out[i++] = b;
-        } catch (UnsupportedEncodingException e) {
-            e.printStackTrace();
-            System.exit(1);
-        }
+        for (byte b : data) out[i++] = b;
         return out;
     }
 
