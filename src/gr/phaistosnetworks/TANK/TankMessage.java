@@ -24,8 +24,12 @@ public class TankMessage {
     timestamp = ts;
     message = m;
     key = k;
-    if (k.length > 0) haveKey = true;
-    else haveKey = false;
+
+    if (k.length > 0) {
+      haveKey = true;
+    } else {
+      haveKey = false;
+    }
   }
 
   /**
@@ -36,8 +40,11 @@ public class TankMessage {
    */
   public TankMessage(byte[] k, byte[] m) {
     key = k;
-    if (k.length > 0) haveKey = true;
-    else haveKey = false;
+    if (k.length > 0) {
+      haveKey = true;
+    } else {
+      haveKey = false;
+    }
     message = m;
   }
 
@@ -61,12 +68,21 @@ public class TankMessage {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
 
     byte flags = 0;
-    if (useLastTS) flags |= TankClient.USE_LAST_SPECIFIED_TS;
-    if (haveKey) flags |= TankClient.HAVE_KEY;
+    if (useLastTS) {
+      flags |= TankClient.USE_LAST_SPECIFIED_TS;
+    }
+    if (haveKey) { 
+      flags |= TankClient.HAVE_KEY;
+    }
     baos.write(ByteManipulator.serialize(flags, TankClient.U8));
 
-    if (!useLastTS) baos.write(ByteManipulator.serialize(System.currentTimeMillis(), TankClient.U64));
-    if (haveKey) baos.write(ByteManipulator.getStr8(key));
+    if (!useLastTS) {
+      baos.write(ByteManipulator.serialize(System.currentTimeMillis(), TankClient.U64));
+    }
+
+    if (haveKey) {
+      baos.write(ByteManipulator.getStr8(key));
+    }
 
     baos.write(ByteManipulator.getVarInt(message.length));
     baos.write(message);
@@ -78,35 +94,45 @@ public class TankMessage {
    *
    * @return the sequence id
    */
-  public long getSeqID() { return seqID; }
+  public long getSeqID() {
+    return seqID;
+  }
 
   /**
    * gets the message's timestamp.
    *
    * @return the timestamp
    */
-  public long getTimestamp() { return timestamp; }
+  public long getTimestamp() {
+    return timestamp;
+  }
 
   /**
    * gets the message
    *
    * @return the message
    */
-  public byte[] getMessage() { return message; }
+  public byte[] getMessage() {
+    return message;
+  }
 
   /**
    * does this message have a key?
    *
    * @return drumroll
    */
-  public boolean haveKey() { return haveKey; }
+  public boolean haveKey() {
+    return haveKey;
+  }
 
   /**
    * Get the key
    *
    * @return the key
    */
-  public byte[] getKey() { return key; }
+  public byte[] getKey() {
+    return key;
+  }
 
   private boolean haveKey;
   private long seqID;

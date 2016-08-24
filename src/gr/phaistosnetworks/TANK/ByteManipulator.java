@@ -29,8 +29,13 @@ public class ByteManipulator {
   public void append(byte[] in) {
     byte souma[] = new byte[input.length + in.length];
 
-    for (int i = 0; i < input.length; i++) souma[i] = input[i];
-    for (int i = 0; i < in.length; i++) souma[input.length + i] = in[i];
+    for (int i = 0; i < input.length; i++) {
+      souma[i] = input[i];
+    }
+
+    for (int i = 0; i < in.length; i++) {
+      souma[input.length + i] = in[i];
+    }
 
     input = souma;
   }
@@ -44,7 +49,9 @@ public class ByteManipulator {
    */
   public byte[] get(int length) {
     byte bar[] = new byte[length];
-    for (int i = 0; i < length; i++) bar[i] = input[offset + i];
+    for (int i = 0; i < length; i++) {
+      bar[i] = input[offset + i];
+    }
     offset += length;
     return bar;
   }
@@ -57,7 +64,9 @@ public class ByteManipulator {
    */
   public byte[] snappyUncompress(long length) throws IOException {
     byte toDC[] = new byte[(int)length];
-    for (int i = 0; i < length; i++) toDC[i] = input[offset + i];
+    for (int i = 0; i < length; i++) {
+      toDC[i] = input[offset + i];
+    }
     offset += length;
     return Snappy.uncompress(toDC);
   }
@@ -185,7 +194,9 @@ public class ByteManipulator {
    * @return the varint byte array
    */
   public static byte[] getVarInt(long n) throws TankException {
-    if (n > UINT32_MAX) throw new TankException("Number Too Large (max " + UINT32_MAX + "): " + n);
+    if (n > UINT32_MAX) {
+      throw new TankException("Number Too Large (max " + UINT32_MAX + "): " + n);
+    }
 
     byte[] result = new byte[0];
     if (n < (1 << VARINT_BYTE_SHIFT_ONE)) {
@@ -227,7 +238,9 @@ public class ByteManipulator {
     offset++;
 
     byte op[] = new byte[length];
-    for (int i = 0; i < length; i++) op[i] = input[offset + i];
+    for (int i = 0; i < length; i++) {
+      op[i] = input[offset + i];
+    }
     offset += length;
     return new String(op);
   }
@@ -249,12 +262,16 @@ public class ByteManipulator {
    * @return a byte array containing the length of the string followed by the data
    */
   public static byte[] getStr8(byte[] data) throws TankException {
-    if (data.length > BYTE_MAX) throw new TankException("Str8 too long (max " + BYTE_MAX + " chars): " + new String(data));
+    if (data.length > BYTE_MAX) {
+      throw new TankException("Str8 too long (max " + BYTE_MAX + " chars): " + new String(data));
+    }
     int length = data.length;
     byte out[] = new byte[length + 1];
     out[0] = (byte)length;
     int i = 1;
-    for (byte b : data) out[i++] = b;
+    for (byte b : data) {
+      out[i++] = b;
+    }
     return out;
   }
 

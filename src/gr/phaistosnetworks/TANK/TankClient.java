@@ -88,7 +88,9 @@ public class TankClient {
 
     byte req[] = fetchReq(0L, clientReqID++, topics);
     byte rsize[] = (ByteManipulator.serialize(req.length - U8 - U32, U32));
-    for (int i = 0; i < U32; i++) req[i + 1] = rsize[i];
+    for (int i = 0; i < U32; i++) {
+      req[i + 1] = rsize[i];
+    }
     socketOutputStream.write(req);
     poll(topics);
     return messages;
@@ -122,14 +124,20 @@ public class TankClient {
         }
       }
 
-      if (remainder >= 0) toRead = av;
-      else toRead = remainder;
+      if (remainder >= 0) {
+        toRead = av;
+      } else {
+        toRead = remainder;
+      }
 
       byte ba[] = new byte[toRead];
       bis.read(ba, 0, toRead);
 
-      if (remainder > 0) input.append(ba);
-      else input = new ByteManipulator(ba);
+      if (remainder > 0) {
+        input.append(ba);
+      } else {
+        input = new ByteManipulator(ba);
+      }
 
       byte resp = (byte)input.deSerialize(U8);
       long payloadSize = input.deSerialize(U32);
@@ -149,10 +157,15 @@ public class TankClient {
       log.fine("resp: " + resp);
       log.fine("payload size: " + payloadSize);
 
-      if (reqType == TankClient.CONSUME_REQ) processMessages(input, topics);
-      else if (reqType == TankClient.PUBLISH_REQ) getPubResponse(input);
+      if (reqType == TankClient.CONSUME_REQ) {
+        processMessages(input, topics);
+      } else if (reqType == TankClient.PUBLISH_REQ) {
+        getPubResponse(input);
+      }
 
-      for (Handler h : log.getHandlers()) h.flush();
+      for (Handler h : log.getHandlers()) {
+        h.flush();
+      }
       break;
     }
   }
@@ -186,7 +199,9 @@ public class TankClient {
       } else {
         // Partitions
         for (int p = 0; p < totalPartitions; p++) {
-          if (p != 0) partition = (int)input.deSerialize(U16);
+          if (p != 0) {
+            partition = (int)input.deSerialize(U16);
+          }
 
           byte errorOrFlags = (byte)input.deSerialize(U8);
           log.fine("Partition : " + partition);
@@ -263,7 +278,9 @@ public class TankClient {
         log.finer("Bundle compressed : " + compressed);
         log.finer("Bundle SPARSE : " + sparse);
 
-        if (messageCount == 0) messageCount = input.getVarInt();
+        if (messageCount == 0) {
+          messageCount = input.getVarInt();
+        }
         log.finer("Messages in set : " + messageCount);
 
         long firstMessageNum = 0L;
@@ -291,18 +308,25 @@ public class TankClient {
         long timestamp = 0L;
         long prevSeqNum = firstMessageNum;
         for (int i = 0; i < messageCount; i++) {
-          if (curSeqNum == 0) curSeqNum = c.baseAbsSeqNum - 1;
+          if (curSeqNum == 0) {
+            curSeqNum = c.baseAbsSeqNum - 1;
+          }
           log.finer("#### Message " + (i + 1) + " out of " + messageCount);
           flags = (byte)chunkMsgs.deSerialize(U8);
           log.finer(String.format("flags : %d", flags));
           if (sparse == 1) {
-            if (i == 0) log.finer("seq num: " + firstMessageNum);
-            else if (i != 0 && i != (messageCount - 1)) {
+            if (i == 0) {
+              log.finer("seq num: " + firstMessageNum);
+            } else if (i != 0 && i != (messageCount - 1)) {
               curSeqNum = (chunkMsgs.getVarInt() + 1 + prevSeqNum);
               log.finer("seq num: " + curSeqNum);
               prevSeqNum = curSeqNum;
-            } else log.finer("seq num: " + lastMessageNum);
-          } else curSeqNum++;
+            } else {
+              log.finer("seq num: " + lastMessageNum);
+            }
+          } else {
+            curSeqNum++;
+          }
           log.finer("cur seq num: " + curSeqNum);
 
           if ((flags & USE_LAST_SPECIFIED_TS) == 0) {
@@ -323,7 +347,9 @@ public class TankClient {
           log.finest(new String(message));
 
           // Don't save the message if it has a sequence number lower than we requested.
-          if (curSeqNum >= minSeqNum) messages.add(new TankMessage(curSeqNum, timestamp, key.getBytes(), message));
+          if (curSeqNum >= minSeqNum) {
+            messages.add(new TankMessage(curSeqNum, timestamp, key.getBytes(), message));
+          }
         }
       }
     }
@@ -346,7 +372,9 @@ public class TankClient {
     topics[0] = new Topic(topic, partition, bun);
     byte req[] = publishReq(0L, clientReqID++, 0, 0L, topics);
     byte rsize[] = (ByteManipulator.serialize(req.length - 5, U32));
-    for (int i = 0; i < U32; i++) req[i + 1] = rsize[i];
+    for (int i = 0; i < U32; i++) {
+      req[i + 1] = rsize[i];
+    }
 
     socketOutputStream.write(req);
     poll(topics);
@@ -387,7 +415,9 @@ public class TankClient {
       baos.write(ByteManipulator.serialize(maxWait, U64));
       baos.write(ByteManipulator.serialize(minBytes, U32));
       baos.write(ByteManipulator.serialize(topics.length, U8));
-      for (int i = 0; i < topics.length; i++) baos.write(topics[i].serialize());
+      for (int i = 0; i < topics.length; i++) {
+        baos.write(topics[i].serialize());
+      }
     } catch (Exception e) {
       log.log(Level.SEVERE, "ERROR creating fetch request", e);
       System.exit(1);
@@ -437,10 +467,14 @@ public class TankClient {
   private boolean getPing(BufferedInputStream bis) {
     try {
       int av = bis.available();
-      if (av == 0) return false;
+      if (av == 0) {
+        return false;
+      }
 
       byte b = (byte)bis.read();
-      if (b != PING_REQ) return false;
+      if (b != PING_REQ) {
+        return false;
+      }
       // payload size:u32 is 0 for ping
       bis.skip(U32);
     } catch (Exception e) {
@@ -598,13 +632,19 @@ public class TankClient {
       ByteArrayOutputStream baos = new ByteArrayOutputStream();
       try {
         byte flags = 0;
-        if (messages.size() <= U4_MAX) flags |= (messages.size() << 2);
+        if (messages.size() <= U4_MAX) {
+          flags |= (messages.size() << 2);
+        }
 
         baos.write(ByteManipulator.serialize(flags, U8));
 
-        if (messages.size() > U4_MAX) baos.write(ByteManipulator.getVarInt(messages.size()));
+        if (messages.size() > U4_MAX) {
+          baos.write(ByteManipulator.getVarInt(messages.size()));
+        }
 
-        for (TankMessage tm : messages) baos.write(tm.serialize(false));
+        for (TankMessage tm : messages) {
+          baos.write(tm.serialize(false));
+        }
       } catch (Exception e) {
         log.log(Level.SEVERE, "ERROR creating Topic", e);
         System.exit(1);
