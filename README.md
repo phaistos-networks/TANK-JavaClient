@@ -14,7 +14,7 @@ make TankClient
 ## Usage ##
 ### import ###
 ```java
-import gr.phaistosnetworks.TANK.*;
+import gr.phaistosnetworks.tank.*;
 ```
 
 ### Publish ###
