@@ -134,7 +134,11 @@ public class ByteManipulator {
    * @return positive integer value of that byte.
    */
   private int asInt(int v) {
-    return v < 0 ? (v + BYTE_MAX + 1) : v;
+    if (v < 0) {
+      return (v + BYTE_MAX + 1);
+    } else {
+      return v;
+    }
   }
 
   /**
