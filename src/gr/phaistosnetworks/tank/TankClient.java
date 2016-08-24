@@ -98,6 +98,7 @@ public class TankClient {
       int partition, 
       long reqSeqNum) 
       throws IOException, TankException {
+
     log.fine("Received consume req seq: " + reqSeqNum + " reqId: " + (clientReqId + 1));
     reqType = TankClient.CONSUME_REQ;
 
@@ -180,7 +181,7 @@ public class TankClient {
       if (reqType == TankClient.CONSUME_REQ) {
         processMessages(input, topics);
       } else if (reqType == TankClient.PUBLISH_REQ) {
-        getPubResponse(input);
+        getPubResponse(input, topics);
       }
 
       for (Handler h : log.getHandlers()) {
@@ -398,6 +399,7 @@ public class TankClient {
       int partition, 
       ArrayList<TankMessage> msgs) 
       throws IOException, TankException {
+
     log.fine("Received pub req with " + msgs.size() + " messages");
     reqType = TankClient.PUBLISH_REQ;
 
@@ -420,7 +422,7 @@ public class TankClient {
    *
    * @param input a ByteManipulator object containing the data received from server.
    */
-  private void getPubResponse(ByteManipulator input) throws TankException {
+  private void getPubResponse(ByteManipulator input, Topic[] topics) throws TankException {
     log.fine("request ID: " + input.deSerialize(U32));
     long error = input.deSerialize(U8);
     if (error == U8_MAX) {
@@ -479,6 +481,7 @@ public class TankClient {
       int reqAcks, 
       long ackTimeout, 
       Topic[] topics) {
+
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     try {
       baos.write((byte)0x1);
