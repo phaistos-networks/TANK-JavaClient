@@ -25,6 +25,6 @@ client:
 	$(JAVAC) -d . $(FLAGS) $(SRC)/$(DST)/*.java
 
 style:
-	java -jar $(CURDIR)/ext/checkstyle-all-4.4.jar com.puppycrawl.tools.checkstyle.Main -c $(CURDIR)/ext/grade_checks.xml $(SRC)/$(DST)/*.java
+	java -jar $(CURDIR)/ext/checkstyle-7.1-all.jar com.puppycrawl.tools.checkstyle.Main -c $(CURDIR)/ext/google_checks.xml $(SRC)/$(DST)/*.java
 
 .PHONY: doc
