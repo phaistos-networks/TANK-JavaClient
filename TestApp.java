@@ -7,10 +7,11 @@ import gr.phaistosnetworks.TANK.*;
 class TestApp {
     public static void main(String[] args) throws Exception {
         byte foo[];
-        String [] testStrings = new String[3];
+        String [] testStrings = new String[4];
         testStrings[0] = "Hello World";
         testStrings[1] = "Here is the super long string that should make my str8 implementation explode. How many chars can 1 byte enumerate anyway? How about a spider bite. That has 8 legs and maybe 8 eyes. It may have spider sense too. yada yada bladi blah Llanfairpwllgwyngyllgogerychwyrndrobwllllantysiliogogogoch";
         testStrings[2] = "";
+        testStrings[3] = "myKey";
 
         for (String testString : testStrings) {
             try {
@@ -119,7 +120,7 @@ class TestApp {
                     doProduce = true;
                     pushData = new ArrayList<TankMessage>();
                     for (i++;i<args.length;i++) {
-                        pushData.add(new TankMessage(testStrings[0].getBytes(), args[i].getBytes(Charset.forName("UTF-8"))));
+                        pushData.add(new TankMessage(testStrings[3].getBytes(), args[i].getBytes(Charset.forName("UTF-8"))));
                     }
                     break;
             }
@@ -133,7 +134,10 @@ class TestApp {
             while (true) {
                 data = tc.consume(topic, partition, id);
                 for (TankMessage tm : data) {
-                    System.out.println("seq: " + tm.getSeqID() + " ts: "+tm.getTimestamp()+" message: " + new String(tm.getMessage()));
+                    System.out.println("seq: " + tm.getSeqID() 
+                        + " ts: " + tm.getTimestamp()
+                        + " key: " + new String(tm.getKey())
+                        + " message: " + new String(tm.getMessage()));
                     id = tm.getSeqID()+1;
                 }
             }

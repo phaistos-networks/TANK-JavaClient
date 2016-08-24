@@ -7,12 +7,12 @@ package gr.phaistosnetworks.TANK;
  */
 public class TankException extends Exception {
 
-    /**
-     * Does excactly what it says on the tin
-     *
-     * @param message what it says on the tin
-     */
-    public TankException(String message) {
-        super(message);
-    }
+  /**
+   * Does excactly what it says on the tin
+   *
+   * @param message what it says on the tin
+   */
+  public TankException(String message) {
+    super(message);
+  }
 }
