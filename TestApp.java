@@ -93,7 +93,7 @@ class TestApp {
         case "--port":
           try {
             port = Integer.parseInt(args[++i]);
-          } catch (NumberFormatException nfe) {
+          } catch (NumberFormatException | ArrayIndexOutOfBoundsException nfe) {
             System.out.println("This is not the port you are looking for. Using default 11011");
           }
           break;
@@ -105,7 +105,7 @@ class TestApp {
         case "-partition":
           try {
             partition = Integer.parseInt(args[++i]);
-          } catch (NumberFormatException nfe) {
+          } catch (NumberFormatException | ArrayIndexOutOfBoundsException nfe) {
             System.out.println("I'll give you 0 now and 0 when we reach Alderaan. Partition 0.");
           }
           break;
@@ -114,7 +114,7 @@ class TestApp {
           consumate = true;
           try {
             id = Long.parseLong(args[++i]);
-          } catch (NumberFormatException nfe) {
+          } catch (NumberFormatException | ArrayIndexOutOfBoundsException nfe) {
             System.out.println("I have a baad feeling about this. Commencing from sequence 0");
           }
           break;
