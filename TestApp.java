@@ -70,6 +70,7 @@ class TestApp {
     }
 
     String host = new String("localhost");
+    String key = new String();
     int port = 11011;
     String topic = new String("foo");
     int partition = 0;
@@ -118,6 +119,10 @@ class TestApp {
             System.out.println("I have a baad feeling about this. Commencing from sequence 0");
           }
           break;
+        case "-k":
+        case "-key":
+          key = args[++i];
+          break;
         case "-put":
         case "-set":
         case "-publish":
@@ -126,7 +131,7 @@ class TestApp {
           for (i++; i < args.length; i++) {
             pushData.add(
                 new TankMessage(
-                    testStrings[3].getBytes(), 
+                    key.getBytes(),
                     args[i].getBytes(Charset.forName("UTF-8"))));
           }
           break;
