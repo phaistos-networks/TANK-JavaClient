@@ -18,10 +18,10 @@ clean:
 	find . -type f -name '*.class' | xargs rm -f
 
 testapp: TestApp.java
-	$(JAVAC) $(FLAGS) TestApp.java
+	$(JAVAC) $(FLAGS) TestApp.java Tool.java
 
 teststyle:
-	java -jar $(CURDIR)/ext/* com.puppycrawl.tools.checkstyle.Main -c $(CURDIR)/ext/google_checks.xml TestApp.java
+	java -jar $(CURDIR)/ext/* com.puppycrawl.tools.checkstyle.Main -c $(CURDIR)/ext/google_checks.xml TestApp.java Tool.java
 
 client: 
 	mkdir -p $(DST)

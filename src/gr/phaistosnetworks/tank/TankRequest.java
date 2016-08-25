@@ -1,6 +1,5 @@
 package gr.phaistosnetworks.tank;
 
-
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
@@ -10,18 +9,42 @@ import java.util.HashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-class TankRequest {
-  public TankRequest(short requestType) {
+/**
+ * Request to publish or consume.
+ */
+public class TankRequest {
+
+  /**
+   * Constructor.
+   *
+   * @param requestType can be TankClient.PUBLISH_REQ or TankClient.CONSUME_REQ
+   */
+  public TankRequest(short requestType) throws TankException {
     log = Logger.getLogger("tankClient");
     this.requestType = requestType;
     if (requestType == TankClient.CONSUME_REQ) {
       consumeRequestTopics = new HashMap<String, HashMap<Integer, Long>>();
-    } else {
+    } else if (requestType == TankClient.PUBLISH_REQ) {
       publishRequestTopics = new HashMap<String, HashMap<Integer, Bundle>>();
+    } else {
+      throw new TankException(
+          "Request Type can only be TankClient.CONSUME_REQ or TankClient.PUBLISH_REQ");
     }
   }
 
-  public void consumeTopicPartition(String topicName, int partition, long seqId) throws TankException {
+  /**
+   * Adds a topic, partition, seqeuenceId combo to a CONSUME_REQ.
+   *
+   * @param seqId the sequence id to request.
+   *
+   * @throws TankException if the request type is not CONSUME_REQ
+   */
+  public void consumeTopicPartition(
+      String topicName,
+      int partition,
+      long seqId)
+      throws TankException {
+
     if (requestType != TankClient.CONSUME_REQ) {
       throw new TankException("Can only add consumeTopicPartitions to CONSUME TankRequests");
     }
@@ -32,7 +55,19 @@ class TankRequest {
     }
   }
 
-  public void publishMessage(String topicName, int partition, TankMessage message) throws TankException {
+  /**
+   * Adds a topic, partition, TankMessage combo to be published.
+   *
+   * @param message the TankMessage to be published
+   *
+   * @throws TankException if the request type is not PUBLISH_REQ
+   */
+  public void publishMessage(
+      String topicName,
+      int partition,
+      TankMessage message)
+      throws TankException {
+
     if (requestType != TankClient.PUBLISH_REQ) {
       throw new TankException("Can only add publish messages to PUBLISH TankRequests");
     }
@@ -49,15 +84,26 @@ class TankRequest {
     }
   }
 
+  /**
+   * serializes the current TankRequest into a byte array,
+   * suitable for sending to the TANK broker.
+   *
+   * @return the serialized byte array to be sent.
+   */
   public byte[] serialize() throws IOException, TankException {
     if (requestType == TankClient.CONSUME_REQ) {
-      return serializeFetchRequest();
+      return serializeConsumeRequest();
     } else {
       return serializePublishRequest();
     }
   }
 
-  private byte[] serializeFetchRequest() throws IOException, TankException {
+  /**
+   * the serialization method for consume requests.
+   *
+   * @return the serialized data
+   */
+  private byte[] serializeConsumeRequest() throws IOException, TankException {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     HashMap<Integer, Long> partitionRequest;
     for (String topic : consumeRequestTopics.keySet()) {
@@ -75,6 +121,11 @@ class TankRequest {
     return baos.toByteArray();
   }
 
+  /**
+   * the serialization method for publish requests.
+   *
+   * @return the serialized data
+   */
   private byte[] serializePublishRequest() throws IOException, TankException {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     HashMap<Integer, Bundle> partitionRequest;
@@ -82,7 +133,7 @@ class TankRequest {
       baos.write(ByteManipulator.getStr8(topic));
 
       partitionRequest = publishRequestTopics.get(topic);
-      baos.write(ByteManipulator.serialize(partitionRequest.size(), TankClient.U16));
+      baos.write(ByteManipulator.serialize(partitionRequest.size(), TankClient.U8));
 
       for (int partition : partitionRequest.keySet()) {
         baos.write(ByteManipulator.serialize(partition, TankClient.U16));
@@ -95,14 +146,27 @@ class TankRequest {
   }
 
   /**
-   * see tank_encoding.md for chunk details.
+   * access method.
+   *
+   * @return the count of topics contained in this request.
+   */
+  public int getTopicsCount() {
+    if (requestType == TankClient.CONSUME_REQ) {
+      return consumeRequestTopics.size();
+    } else {
+      return publishRequestTopics.size();
+    }
+  }
+
+  /**
+   * see tank_encoding.md for bundle details.
    */
   private class Bundle {
 
     /**
      * constructor for new bundle.
      *
-     * @param msgs the messages to be included in the bundle
+     * @param message the first message to be included in the bundle
      */
     private Bundle(TankMessage message) {
       this.messages = new ArrayList<TankMessage>();
@@ -112,7 +176,7 @@ class TankRequest {
     /**
      * add TankMessage to bundle.
      *
-     * @param tm tankMessage to add
+     * @param message tankMessage to add to this bundle
      */
     void addMsg(TankMessage message) {
       messages.add(message);

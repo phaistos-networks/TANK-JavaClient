@@ -41,7 +41,6 @@ public class TankClient {
     clientReqId = 0;
     log = Logger.getLogger("tankClient");
     messages = new ArrayList<TankMessage>();
-    reqType = PING_REQ;
 
     try {
       while (true) {
@@ -100,7 +99,6 @@ public class TankClient {
       throws IOException, TankException {
 
     log.fine("Received consume req seq: " + reqSeqNum + " reqId: " + (clientReqId + 1));
-    reqType = TankClient.CONSUME_REQ;
 
     Topic [] topics = new Topic[1];
     topics[0] = new Topic(topic, partition, reqSeqNum, fetchSize);
@@ -111,7 +109,7 @@ public class TankClient {
       req[i + 1] = rsize[i];
     }
     socketOutputStream.write(req);
-    poll(topics);
+    poll(CONSUME_REQ, topics);
     return messages;
   }
 
@@ -125,13 +123,18 @@ public class TankClient {
    *
    * @param topics requested topics, used to crosscheck min reqSeqNum.
    */
-  private void poll(Topic[] topics) throws TankException, IOException {
+  private void poll(short requestType, Topic[] topics) throws TankException {
     messages = new ArrayList<TankMessage>();
     ByteManipulator input = new ByteManipulator(null);
     int remainder = 0;
     int toRead = 0;
     while (true) {
-      int av = bis.available();
+      int av = 0;
+      try {
+        av = bis.available();
+      } catch (IOException ioe) {
+        log.log(Level.SEVERE, "Unable to read from socket", ioe);
+      }
       log.finest("bytes available: " + av);
       if (av == 0) {
         try {
@@ -150,7 +153,11 @@ public class TankClient {
       }
 
       byte [] ba = new byte[toRead];
-      bis.read(ba, 0, toRead);
+      try {
+        bis.read(ba, 0, toRead);
+      } catch (IOException ioe) {
+        log.log(Level.SEVERE, "Unable to read from socket", ioe);
+      }
 
       if (remainder > 0) {
         input.append(ba);
@@ -161,9 +168,9 @@ public class TankClient {
       byte resp = (byte)input.deSerialize(U8);
       long payloadSize = input.deSerialize(U32);
 
-      if (resp != reqType) {
-        log.severe("Bad Response type. Expected " + reqType + ", got " + resp);
-        throw new TankException("Bad Response type. Expected " + reqType + ", got " + resp);
+      if (resp != requestType) {
+        log.severe("Bad Response type. Expected " + requestType + ", got " + resp);
+        throw new TankException("Bad Response type. Expected " + requestType + ", got " + resp);
       }
 
       if (payloadSize > input.getRemainingLength()) {
@@ -178,9 +185,9 @@ public class TankClient {
       log.fine("resp: " + resp);
       log.fine("payload size: " + payloadSize);
 
-      if (reqType == TankClient.CONSUME_REQ) {
+      if (requestType == CONSUME_REQ) {
         processMessages(input, topics);
-      } else if (reqType == TankClient.PUBLISH_REQ) {
+      } else if (requestType == PUBLISH_REQ) {
         getPubResponse(input, topics);
       }
 
@@ -394,6 +401,51 @@ public class TankClient {
   }
 
   /**
+   * Send publish request to broker.
+   */
+  public void publish(TankRequest request) throws TankException {
+    ByteArrayOutputStream baos  = new ByteArrayOutputStream();
+    log.info("Issuing publish with " + request.getTopicsCount() + " topics");
+
+    try {
+      baos.write((byte)PUBLISH_REQ);
+      baos.write(ByteManipulator.serialize(0, U32));
+
+      //clientVersion not implemented
+      baos.write(ByteManipulator.serialize(0L, U16));
+      baos.write(ByteManipulator.serialize(clientReqId++, U32));
+      baos.write(clientId);
+
+      //requestAcks not implemented
+      baos.write(ByteManipulator.serialize(0L, U8));
+      //ackTimeout not implemented
+      baos.write(ByteManipulator.serialize(0L, U32));
+
+      baos.write(ByteManipulator.serialize(request.getTopicsCount(), U8));
+      baos.write(request.serialize());
+    } catch (IOException ioe) {
+      log.log(Level.SEVERE, "ERROR creating publish request", ioe);
+      System.exit(1);
+    }
+
+    byte [] req = baos.toByteArray();
+    byte [] rsize = (ByteManipulator.serialize(req.length - 5, U32));
+    log.fine("Publish request size is " + req.length);
+
+    for (int i = 0; i < U32; i++) {
+      req[i + 1] = rsize[i];
+    }
+
+    try {
+      socketOutputStream.write(req);
+    } catch (IOException ioe) {
+      log.log(Level.SEVERE, "ERROR writing publish request to socket", ioe);
+      System.exit(1);
+    }
+    poll(PUBLISH_REQ, new Topic[1]);
+  }
+
+  /**
    * publishes an ArrayList of messages to tank server.
    *
    * @param topic the topic to publish to
@@ -407,7 +459,6 @@ public class TankClient {
       throws IOException, TankException {
 
     log.fine("Received pub req with " + msgs.size() + " messages");
-    reqType = TankClient.PUBLISH_REQ;
 
     Topic [] topics = new Topic[1];
     Bundle bundle = new Bundle(msgs);
@@ -420,7 +471,7 @@ public class TankClient {
     }
 
     socketOutputStream.write(req);
-    poll(topics);
+    poll(PUBLISH_REQ, topics);
   }
 
   /**
@@ -770,7 +821,6 @@ public class TankClient {
   private Logger log;
   private int clientReqId;
   private ArrayList<TankMessage> messages;
-  private short reqType;
   private long fetchSize = 20000L;
   private long maxWait = 5000L;
   private long minBytes = 0L;
