@@ -444,35 +444,6 @@ public class TankClient {
   }
 
   /**
-   * publishes an ArrayList of messages to tank server.
-   *
-   * @param msgs the ArrayList of messages to publish
-   */
-  /*
-  public void publish(
-      String topic, 
-      int partition, 
-      ArrayList<TankMessage> msgs) 
-      throws IOException, TankException {
-
-    log.fine("Received pub req with " + msgs.size() + " messages");
-
-    Topic [] topics = new Topic[1];
-    Bundle bundle = new Bundle(msgs);
-
-    topics[0] = new Topic(topic, partition, bundle);
-    byte [] req = publishReq(0L, clientReqId++, 0, 0L, topics);
-    byte [] rsize = (ByteManipulator.serialize(req.length - 5, U32));
-    for (int i = 0; i < U32; i++) {
-      req[i + 1] = rsize[i];
-    }
-
-    socketOutputStream.write(req);
-    //poll(PUBLISH_REQ, topics);
-  }
-  */
-
-  /**
    * Processes a response from tank server after we issue a publish request.
    *
    * @param input a ByteManipulator object containing the data received from server.
@@ -486,19 +457,6 @@ public class TankClient {
           input.deSerialize(U8));
     }
     return response;
-    /*
-    log.fine("request ID: " + input.deSerialize(U32));
-    long error = input.deSerialize(U8);
-    if (error == U8_MAX) {
-      log.fine("Topic Error: " + error);
-      log.severe("Error, Topic not found");
-      throw new TankException("Topic Error: " + error);
-    } else if (error != 0) {
-      throw new TankException("Partition Error: " + error);
-    } else {
-      log.fine("error flag is: " + error);
-    }
-    */
   }
 
   /**
@@ -529,49 +487,6 @@ public class TankClient {
     }
     return baos.toByteArray();
   }
-
-  /**
-   * Create the encoded publish request.
-   *
-   * @param clientVersion optional version number
-   * @param reqId optional request id
-   * @param reqAcks number of required acks. Used in clustered mode setups.
-   * @param ackTimeout timeout for acks. Used in clustered mode setups.
-   * @param topics array of topics to be serialized.
-   * @return a byte array containing the request to be sent to TANK.
-   */
-  /*
-  private byte[] publishReq(
-      long clientVersion, 
-      long reqId, 
-      int reqAcks, 
-      long ackTimeout, 
-      Topic[] topics) {
-
-    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    try {
-      baos.write((byte)0x1);
-      baos.write(ByteManipulator.serialize(0, U32));
-
-      baos.write(ByteManipulator.serialize(clientVersion, U16));
-      baos.write(ByteManipulator.serialize(reqId, U32));
-      baos.write(clientId);
-
-      baos.write(ByteManipulator.serialize(reqAcks, U8));
-      baos.write(ByteManipulator.serialize(ackTimeout, U32));
-
-      baos.write(ByteManipulator.serialize(topics.length, U8));
-      for (int i = 0; i < topics.length; i++) {
-        baos.write(topics[i].serialize());
-      }
-
-    } catch (IOException ioe) {
-      log.log(Level.SEVERE, "ERROR creating publish request", ioe);
-      System.exit(1);
-    }
-    return baos.toByteArray();
-  }
-  */
 
   /**
    * get a valid ping response from server.

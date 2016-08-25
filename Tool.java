@@ -94,15 +94,17 @@ class Tool {
     publish.publishMessage("bar", 0, new TankMessage("This topic does not exist".getBytes()));
 
     TankClient tc = new TankClient(host, port);
-    TankResponse tr = tc.publish(publish);
-    if (tr.hasErrors()) {
-      for (TankError te : tr.getErrors()) {
-        if (te.getError() == TankClient.ERROR_NO_SUCH_TOPIC) {
-          System.out.println("Error, topic " + te.getTopic() + " does not exist !");
-        } else if (te.getError() == TankClient.ERROR_NO_SUCH_PARTITION) {
-          System.out.println("Error, topic " + te.getTopic() + " doe not have a partition " + te.getPartition());
-        } else {
-          System.out.println("Unknown error for topic: " + te.getTopic() + " partition: " + te.getPartition());
+    if (false) {
+      TankResponse tr = tc.publish(publish);
+      if (tr.hasErrors()) {
+        for (TankError te : tr.getErrors()) {
+          if (te.getError() == TankClient.ERROR_NO_SUCH_TOPIC) {
+            System.out.println("Error, topic " + te.getTopic() + " does not exist !");
+          } else if (te.getError() == TankClient.ERROR_NO_SUCH_PARTITION) {
+            System.out.println("Error, topic " + te.getTopic() + " doe not have a partition " + te.getPartition());
+          } else {
+            System.out.println("Unknown error for topic: " + te.getTopic() + " partition: " + te.getPartition());
+          }
         }
       }
     }
@@ -112,6 +114,7 @@ class Tool {
     consume.consumeTopicPartition("foo", 0, 60);
     consume.consumeTopicPartition("foo", 1, 0);
     consume.consumeTopicPartition("bar", 0, 0);
+    TankResponse tr = tc.consume(consume)
     /*
     if (doProduce) {
       tc.publish(topic, partition, pushData);
