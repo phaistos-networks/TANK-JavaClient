@@ -8,8 +8,8 @@ import java.io.UnsupportedEncodingException;
 
 import java.net.Socket;
 
-import java.util.ArrayList;
 import java.util.AbstractMap.SimpleEntry;
+import java.util.ArrayList;
 
 import java.util.logging.Handler;
 import java.util.logging.Level;
@@ -486,7 +486,7 @@ public class TankClient {
           input.deSerialize(U8));
     }
     return response;
-  /*
+    /*
     log.fine("request ID: " + input.deSerialize(U32));
     long error = input.deSerialize(U8);
     if (error == U8_MAX) {

@@ -3,10 +3,10 @@ package gr.phaistosnetworks.tank;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.AbstractMap;
 import java.util.AbstractMap.SimpleEntry;
+import java.util.ArrayList;
+import java.util.HashMap;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -154,7 +154,7 @@ public class TankRequest {
   }
 
   /**
-   * Returns a list with topic, partition tuples in the same order as the request
+   * Returns a list with topic, partition tuples in the same order as the request.
    */
   ArrayList<SimpleEntry<String, Long>> getTopicPartitions() {
     return publishRequestTopics;
