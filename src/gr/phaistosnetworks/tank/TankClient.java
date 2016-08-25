@@ -82,32 +82,29 @@ public class TankClient {
   }
 
   /**
-   * performs a consume request from server and returns the data.
-   *
-   * @param topic the topic to consume from
-   * @param partition the partition to consume from
-   * @param reqSeqNum the sequence number to start consuming from.
-   * @return an ArrayList containing the response data.
+   * get a valid ping response from server.
+   * 
+   * @param bis BufferedInputStream to read from
+   * @return true if valid ping response is received.
    */
-  public ArrayList<TankMessage> consume(
-      String topic, 
-      int partition, 
-      long reqSeqNum) 
-      throws IOException, TankException {
+  private boolean getPing(BufferedInputStream bis) {
+    try {
+      int av = bis.available();
+      if (av == 0) {
+        return false;
+      }
 
-    log.fine("Received consume req seq: " + reqSeqNum + " reqId: " + (clientReqId + 1));
-
-    Topic [] topics = new Topic[1];
-    topics[0] = new Topic(topic, partition, reqSeqNum, fetchSize);
-
-    byte [] req = fetchReq(0L, clientReqId++, topics);
-    byte [] rsize = (ByteManipulator.serialize(req.length - U8 - U32, U32));
-    for (int i = 0; i < U32; i++) {
-      req[i + 1] = rsize[i];
+      byte readByte = (byte)bis.read();
+      if (readByte != PING_REQ) {
+        return false;
+      }
+      // payload size:u32 is 0 for ping
+      bis.skip(U32);
+    } catch (IOException ioe) {
+      log.log(Level.SEVERE, "ERROR getting ping", ioe);
+      return false;
     }
-    socketOutputStream.write(req);
-    //poll(CONSUME_REQ, topics);
-    return messages;
+    return true;
   }
 
   /**
@@ -197,12 +194,106 @@ public class TankClient {
   }
 
   /**
+   * performs a consume request from server and returns the data.
+   *
+   * @param topic the topic to consume from
+   * @param partition the partition to consume from
+   * @param reqSeqNum the sequence number to start consuming from.
+   * @return an ArrayList containing the response data.
+   */
+   /*
+  public ArrayList<TankMessage> consume(
+      String topic,
+      int partition,
+      long reqSeqNum)
+      throws IOException, TankException {
+
+    log.fine("Received consume req seq: " + reqSeqNum + " reqId: " + (clientReqId + 1));
+
+    Topic [] topics = new Topic[1];
+    topics[0] = new Topic(topic, partition, reqSeqNum, fetchSize);
+
+    byte [] req = fetchReq(0L, clientReqId++, topics);
+    byte [] rsize = (ByteManipulator.serialize(req.length - U8 - U32, U32));
+    for (int i = 0; i < U32; i++) {
+      req[i + 1] = rsize[i];
+    }
+    socketOutputStream.write(req);
+    //poll(CONSUME_REQ, topics);
+    return messages;
+  }
+  */
+
+  /**
+   * Send consume request to broker.
+   */
+  public TankResponse consume(TankRequest request) throws TankException {
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    log.info("Issuing consume with " + request.getTopicsCount() + " topics");
+
+    try {
+      baos.write((byte)CONSUME_REQ);
+      baos.write(ByteManipulator.serialize(0, U32));
+
+      //clientVersion not implemented
+      baos.write(ByteManipulator.serialize(0L, U16));
+      baos.write(ByteManipulator.serialize(clientReqId++, U32));
+      baos.write(clientId);
+      baos.write(ByteManipulator.serialize(maxWait, U64));
+      baos.write(ByteManipulator.serialize(minBytes, U32));
+
+      baos.write(ByteManipulator.serialize(request.getTopicsCount(), U8));
+      baos.write(request.serialize());
+    } catch (IOException ioe) {
+      log.log(Level.SEVERE, "ERROR creating consume request", ioe);
+      System.exit(1);
+    }
+
+    byte [] req = baos.toByteArray();
+    byte [] rsize = (ByteManipulator.serialize(req.length - 5, U32));
+    log.fine("consume request size is " + req.length);
+
+    for (int i = 0; i < U32; i++) {
+      req[i + 1] = rsize[i];
+    }
+
+    try {
+      socketOutputStream.write(req);
+    } catch (IOException ioe) {
+      log.log(Level.SEVERE, "ERROR writing publish request to socket", ioe);
+      System.exit(1);
+    }
+    return poll(CONSUME_REQ, request);
+  }
+
+  /**
+   * Processes a response from tank server after we issue a publish request.
+   *
+   * @param input a ByteManipulator object containing the data received from server.
+   */
+  private TankResponse getConsumeResponse(ByteManipulator input, TankRequest request) {
+    TankResponse response = new TankResponse(input.deSerialize(U32));
+/*
+    for (SimpleEntry<String, Long> tuple : tr.getTopicPartitions()) {
+      response.addConsumeResponse(
+          tuple.getKey(),
+          tuple.getValue(),
+          SOMETHING);
+    }
+    */
+
+    ArrayList<Chunk> chunkList = processHeaders(input, request);
+
+    return response;
+  }
+
+  /**
    * Processes the headers of the input received from tank server.
    *
    * @param input the ByteManipulator object that contains the bytes received from server.
    * @param topics the request topics. Used to crosscheck between request and response.
    */
-  private void processMessages(ByteManipulator input, Topic[] topics) {
+  private ArrayList<Chunk> processHeaders(ByteManipulator input, TankRequest request) {
     ArrayList<Chunk> chunkList = new ArrayList<Chunk>();
     // Headers
     long headerSize  = input.deSerialize(U32);
@@ -261,7 +352,7 @@ public class TankClient {
         }
       }
     }
-    processChunks(input, topics, chunkList);
+    return chunkList;
   }
 
   /**
@@ -271,6 +362,150 @@ public class TankClient {
    * @param topics the request topics. Used to crosscheck between request and response.
    * @param chunkList the chunkList as read from headers.
    */
+  private TankResponse processChunks(ByteManipulator input, TankRequest request, ArrayList<Chunk> chunkList) {
+    //Chunks
+    TankResponse response = new TankResponse(0L);
+    long curSeqNum = 0;
+    long bundleLength = 0;
+    long minSeqNum = 0L;
+    for (Chunk c : chunkList) {
+    /*
+      for (Topic t : topics) {
+        if (t.getName().equals(c.topic)) {
+          minSeqNum = t.getRSeqNum();
+        }
+      }
+      */
+      while (input.getRemainingLength() > 0) {
+        log.finer("Remaining Length: " + input.getRemainingLength());
+        try {
+          bundleLength = input.getVarInt();
+        } catch (ArrayIndexOutOfBoundsException aioobe) {
+          log.info("Bundle length varint incomplete");
+          return response;
+        }
+        log.finer("Bundle length : " + bundleLength);
+        if (bundleLength > input.getRemainingLength()) {
+          log.fine("Bundle Incomplete (remaining bytes: " + input.getRemainingLength() + ")");
+          if (bundleLength > fetchSize) {
+            fetchSize = bundleLength + FETCH_SIZE_LEEWAY;
+            log.info("Increasing fetchSize to " + fetchSize);
+          }
+          return response;
+        }
+        input.flushOffset();
+
+        byte flags = (byte)input.deSerialize(U8);
+        // See TANK tank_encoding.md for flags
+        long messageCount = (flags >> 2) & 0xF;
+        long compressed = flags & 0x3;
+        long sparse = (flags >> 6) & 0xF;
+        log.finer("Bundle compressed : " + compressed);
+        log.finer("Bundle SPARSE : " + sparse);
+
+        if (messageCount == 0) {
+          messageCount = input.getVarInt();
+        }
+        log.finer("Messages in set : " + messageCount);
+
+        long firstMessageNum = 0L;
+        long lastMessageNum = 0L;
+        if (sparse == 1) {
+          firstMessageNum = input.deSerialize(U64);
+          log.finer("First message: " + firstMessageNum);
+          if (messageCount > 1) {
+            lastMessageNum = input.getVarInt() + 1 + firstMessageNum;
+            log.finer("Last message: " + lastMessageNum);
+          }
+        } else {
+          firstMessageNum = c.baseAbsSeqNum;
+        }
+
+        ByteManipulator chunkMsgs;
+        if (compressed == 1) {
+          log.finer("Snappy uncompression");
+          try {
+            chunkMsgs = new ByteManipulator(
+                input.snappyUncompress(
+                    bundleLength - input.getOffset()));
+          } catch (IOException ioe) {
+            log.log(Level.SEVERE, "ERROR uncompressing", ioe);
+            return response;
+          }
+        } else {
+          chunkMsgs = input;
+        }
+
+        long timestamp = 0L;
+        long prevSeqNum = firstMessageNum;
+        if (curSeqNum == 0) {
+          curSeqNum = firstMessageNum;
+        }
+
+        for (int i = 0; i < messageCount; i++) {
+          log.finer("#### Message " + (i + 1) + " out of " + messageCount);
+          flags = (byte)chunkMsgs.deSerialize(U8);
+          log.finer(String.format("flags : %d", flags));
+
+          if (sparse == 1) {
+            if (i == 0) {
+              //do nothing. curSeqNum is already set.
+            } else if ((flags & SEQ_NUM_PREV_PLUS_ONE) != 0) {
+              log.fine("SEQ_NUM_PREV_PLUS_ONE");
+              curSeqNum = prevSeqNum + 1;
+            } else if (i != (messageCount - 1)) {
+              curSeqNum = (chunkMsgs.getVarInt() + 1 + prevSeqNum);
+            } else {
+              curSeqNum = lastMessageNum;
+            }
+            log.finer("sparse msg: " + i + " seq num: " + curSeqNum);
+            prevSeqNum = curSeqNum;
+          }
+          log.finer("cur seq num: " + curSeqNum);
+
+          if ((flags & USE_LAST_SPECIFIED_TS) == 0) {
+            timestamp = chunkMsgs.deSerialize(U64);
+            log.finer("New Timestamp : " + timestamp);
+          } else {
+            log.finer("Using last Timestamp : " + timestamp);
+          }
+
+          String key = new String();
+          if ((flags & HAVE_KEY) != 0) {
+            key = chunkMsgs.getStr8();
+            log.finer("We have a key and it is : " + key);
+          }
+
+          long contentLength = chunkMsgs.getVarInt();
+          log.finer("Content Length: " + contentLength);
+
+          byte [] message = chunkMsgs.getNextBytes((int)contentLength);
+          log.finest(new String(message));
+
+          // Don't save the message if it has a sequence number lower than we requested.
+          /*
+          if (curSeqNum >= minSeqNum) {
+            messages.add(new TankMessage(curSeqNum, timestamp, key.getBytes(), message));
+          }
+          */
+          messages.add(new TankMessage(curSeqNum, timestamp, key.getBytes(), message));
+          curSeqNum++;
+        }
+      }
+    }
+    return response;
+  }
+
+
+
+  /**
+   * Processes the chunks of the input received from tank server.
+   *
+   * @param input the ByteManipulator object that contains the bytes received from server.
+   * @param topics the request topics. Used to crosscheck between request and response.
+   * @param chunkList the chunkList as read from headers.
+   */
+   /*
   private void processChunks(ByteManipulator input, Topic[] topics, ArrayList<Chunk> chunkList) {
     //Chunks
     long curSeqNum = 0;
@@ -397,6 +632,80 @@ public class TankClient {
       }
     }
   }
+  */
+
+
+
+  /**
+   * Processes the headers of the input received from tank server.
+   *
+   * @param input the ByteManipulator object that contains the bytes received from server.
+   * @param topics the request topics. Used to crosscheck between request and response.
+   */
+   /*
+  private void processMessages(ByteManipulator input, Topic[] topics) {
+    ArrayList<Chunk> chunkList = new ArrayList<Chunk>();
+    // Headers
+    long headerSize  = input.deSerialize(U32);
+    long reqId = input.deSerialize(U32);
+    long totalTopics = input.deSerialize(U8);
+    log.fine("header size: " + headerSize);
+    log.fine("reqid: " + reqId);
+    log.fine(String.format("topics count: %d\n", totalTopics));
+
+    for (int t = 0; t < totalTopics; t++) {
+      String topic = input.getStr8();
+      long totalPartitions = input.deSerialize(U8);
+      log.fine("topic name: " + topic);
+      log.fine("Total Partitions: " + totalPartitions);
+
+      int partition = (int)input.deSerialize(U16);
+      if (partition == U16_MAX) {
+        log.warning("Topic " + topic + " Not Found ");
+        continue;
+      } else {
+        // Partitions
+        for (int p = 0; p < totalPartitions; p++) {
+          if (p != 0) {
+            partition = (int)input.deSerialize(U16);
+          }
+
+          byte errorOrFlags = (byte)input.deSerialize(U8);
+          log.fine("Partition : " + partition);
+          log.fine(String.format("ErrorOrFlags : %x\n", errorOrFlags));
+
+          if ((errorOrFlags & U8_MAX) == U8_MAX) {
+            log.warning("Unknown Partition");
+            continue;
+          }
+
+          long baseAbsSeqNum = 0L;
+          if ((errorOrFlags & U8_MAX) != 0xFE) {
+            baseAbsSeqNum = input.deSerialize(U64);
+            log.fine("Base Abs Seq Num : " + baseAbsSeqNum);
+          }
+
+          long highWaterMark = input.deSerialize(U64);
+          long chunkLength = input.deSerialize(U32);
+          log.fine("High Watermark : " + highWaterMark);
+          log.fine("Chunk Length : " + chunkLength);
+
+          if (errorOrFlags == 0x1) {
+            long firstAvailSeqNum = input.deSerialize(U64);
+            log.warning(
+                "Sequence out of bounds. Range: " 
+                + firstAvailSeqNum + " - " + highWaterMark);
+            continue;
+          }
+          chunkList.add(
+              new Chunk(topic, partition, errorOrFlags, baseAbsSeqNum, highWaterMark, chunkLength));
+        }
+      }
+    }
+    processChunks(input, topics, chunkList);
+  }
+  */
+
 
   /**
    * Send publish request to broker.
@@ -443,6 +752,8 @@ public class TankClient {
     return poll(PUBLISH_REQ, request);
   }
 
+
+
   /**
    * Processes a response from tank server after we issue a publish request.
    *
@@ -467,6 +778,7 @@ public class TankClient {
    * @param topics array of topics to be serialized.
    * @return a byte array containing the request to be sent to TANK.
    */
+   /*
   private byte[] fetchReq(long clientVersion, long reqId, Topic[] topics) {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     try {
@@ -487,32 +799,8 @@ public class TankClient {
     }
     return baos.toByteArray();
   }
+  */
 
-  /**
-   * get a valid ping response from server.
-   * 
-   * @param bis BufferedInputStream to read from
-   * @return true if valid ping response is received.
-   */
-  private boolean getPing(BufferedInputStream bis) {
-    try {
-      int av = bis.available();
-      if (av == 0) {
-        return false;
-      }
-
-      byte readByte = (byte)bis.read();
-      if (readByte != PING_REQ) {
-        return false;
-      }
-      // payload size:u32 is 0 for ping
-      bis.skip(U32);
-    } catch (IOException ioe) {
-      log.log(Level.SEVERE, "ERROR getting ping", ioe);
-      return false;
-    }
-    return true;
-  }
 
   /**
    * see tank_protocol.md for chunk details.

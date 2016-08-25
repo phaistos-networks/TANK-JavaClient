@@ -163,6 +163,7 @@ class TestApp {
       }
     }
 
+    /*
     ArrayList<TankMessage> data = new ArrayList<TankMessage>();
     if (consumate) {
       while (true) {
@@ -176,5 +177,6 @@ class TestApp {
         }
       }
     }
+    */
   }
 }

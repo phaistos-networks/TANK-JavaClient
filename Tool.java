@@ -114,7 +114,7 @@ class Tool {
     consume.consumeTopicPartition("foo", 0, 60);
     consume.consumeTopicPartition("foo", 1, 0);
     consume.consumeTopicPartition("bar", 0, 0);
-    TankResponse tr = tc.consume(consume)
+    TankResponse tr = tc.consume(consume);
     /*
     if (doProduce) {
       tc.publish(topic, partition, pushData);
