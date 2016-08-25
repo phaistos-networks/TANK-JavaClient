@@ -2,6 +2,9 @@ import gr.phaistosnetworks.tank.ByteManipulator;
 import gr.phaistosnetworks.tank.TankClient;
 import gr.phaistosnetworks.tank.TankException;
 import gr.phaistosnetworks.tank.TankMessage;
+import gr.phaistosnetworks.tank.TankRequest;
+import gr.phaistosnetworks.tank.TankResponse;
+import gr.phaistosnetworks.tank.TankError;
 
 import java.nio.charset.Charset;
 import java.util.ArrayList;
@@ -78,7 +81,8 @@ class TestApp {
     long id = 0;
     boolean consumate = false;
     boolean doProduce = false;
-    ArrayList<TankMessage> pushData = new ArrayList<TankMessage>();
+    //ArrayList<TankMessage> pushData = new ArrayList<TankMessage>();
+    TankRequest publish = new TankRequest(TankClient.PUBLISH_REQ);
 
     for (int i = 0 ; i < args.length; i++) {
       arg = args[i];
@@ -127,9 +131,11 @@ class TestApp {
         case "-set":
         case "-publish":
           doProduce = true;
-          pushData = new ArrayList<TankMessage>();
+          //pushData = new ArrayList<TankMessage>();
           for (i++; i < args.length; i++) {
-            pushData.add(
+            publish.publishMessage(
+                topic,
+                partition,
                 new TankMessage(
                     key.getBytes(),
                     args[i].getBytes(Charset.forName("UTF-8"))));
@@ -142,7 +148,19 @@ class TestApp {
 
     TankClient tc = new TankClient(host, port);
     if (doProduce) {
-      tc.publish(topic, partition, pushData);
+      TankResponse tr = tc.publish(publish);
+      //tc.publish(topic, partition, pushData);
+      if (tr.hasErrors()) {
+        for (TankError te : tr.getErrors()) {
+          if (te.getError() == TankClient.ERROR_NO_SUCH_TOPIC) {
+            System.out.println("Error, topic " + te.getTopic() + " does not exist !");
+          } else if (te.getError() == TankClient.ERROR_NO_SUCH_PARTITION) {
+            System.out.println("Error, topic " + te.getTopic() + " doe not have a partition " + te.getPartition());
+          } else {
+            System.out.println("Unknown error for topic: " + te.getTopic() + " partition: " + te.getPartition());
+          }
+        }
+      }
     }
 
     ArrayList<TankMessage> data = new ArrayList<TankMessage>();

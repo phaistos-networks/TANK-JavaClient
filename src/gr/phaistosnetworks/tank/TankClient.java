@@ -9,6 +9,8 @@ import java.io.UnsupportedEncodingException;
 import java.net.Socket;
 
 import java.util.ArrayList;
+import java.util.AbstractMap.SimpleEntry;
+
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -104,7 +106,7 @@ public class TankClient {
       req[i + 1] = rsize[i];
     }
     socketOutputStream.write(req);
-    poll(CONSUME_REQ, topics);
+    //poll(CONSUME_REQ, topics);
     return messages;
   }
 
@@ -118,7 +120,7 @@ public class TankClient {
    *
    * @param topics requested topics, used to crosscheck min reqSeqNum.
    */
-  private void poll(short requestType, Topic[] topics) throws TankException {
+  private TankResponse poll(short requestType, TankRequest request) throws TankException {
     messages = new ArrayList<TankMessage>();
     ByteManipulator input = new ByteManipulator(null);
     int remainder = 0;
@@ -181,9 +183,9 @@ public class TankClient {
       log.fine("payload size: " + payloadSize);
 
       if (requestType == CONSUME_REQ) {
-        processMessages(input, topics);
+        //return processMessages(input, request);
       } else if (requestType == PUBLISH_REQ) {
-        getPubResponse(input, topics);
+        return getPubResponse(input, request);
       }
 
       for (Handler h : log.getHandlers()) {
@@ -191,6 +193,7 @@ public class TankClient {
       }
       break;
     }
+    return new TankResponse(0);
   }
 
   /**
@@ -398,7 +401,7 @@ public class TankClient {
   /**
    * Send publish request to broker.
    */
-  public void publish(TankRequest request) throws TankException {
+  public TankResponse publish(TankRequest request) throws TankException {
     ByteArrayOutputStream baos  = new ByteArrayOutputStream();
     log.info("Issuing publish with " + request.getTopicsCount() + " topics");
 
@@ -437,7 +440,7 @@ public class TankClient {
       log.log(Level.SEVERE, "ERROR writing publish request to socket", ioe);
       System.exit(1);
     }
-    poll(PUBLISH_REQ, new Topic[1]);
+    return poll(PUBLISH_REQ, request);
   }
 
   /**
@@ -445,6 +448,7 @@ public class TankClient {
    *
    * @param msgs the ArrayList of messages to publish
    */
+  /*
   public void publish(
       String topic, 
       int partition, 
@@ -464,15 +468,25 @@ public class TankClient {
     }
 
     socketOutputStream.write(req);
-    poll(PUBLISH_REQ, topics);
+    //poll(PUBLISH_REQ, topics);
   }
+  */
 
   /**
    * Processes a response from tank server after we issue a publish request.
    *
    * @param input a ByteManipulator object containing the data received from server.
    */
-  private void getPubResponse(ByteManipulator input, Topic[] topics) throws TankException {
+  private TankResponse getPubResponse(ByteManipulator input, TankRequest tr) {
+    TankResponse response = new TankResponse(input.deSerialize(U32));
+    for (SimpleEntry<String, Long> tuple : tr.getTopicPartitions()) {
+      response.addPublishResponse(
+          tuple.getKey(),
+          tuple.getValue(),
+          input.deSerialize(U8));
+    }
+    return response;
+  /*
     log.fine("request ID: " + input.deSerialize(U32));
     long error = input.deSerialize(U8);
     if (error == U8_MAX) {
@@ -484,6 +498,7 @@ public class TankClient {
     } else {
       log.fine("error flag is: " + error);
     }
+    */
   }
 
   /**
@@ -525,6 +540,7 @@ public class TankClient {
    * @param topics array of topics to be serialized.
    * @return a byte array containing the request to be sent to TANK.
    */
+  /*
   private byte[] publishReq(
       long clientVersion, 
       long reqId, 
@@ -555,6 +571,7 @@ public class TankClient {
     }
     return baos.toByteArray();
   }
+  */
 
   /**
    * get a valid ping response from server.
@@ -837,4 +854,7 @@ public class TankClient {
   public static final byte U16 = 2;
   public static final byte U32 = 4;
   public static final byte U64 = 8;
+
+  public static final long ERROR_NO_SUCH_TOPIC = 1;
+  public static final long ERROR_NO_SUCH_PARTITION = 2;
 }

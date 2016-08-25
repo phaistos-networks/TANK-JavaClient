@@ -5,6 +5,8 @@ import java.io.IOException;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.AbstractMap;
+import java.util.AbstractMap.SimpleEntry;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -25,9 +27,9 @@ public class TankRequest {
     log = Logger.getLogger("tankClient");
     this.requestType = requestType;
     if (requestType == TankClient.CONSUME_REQ) {
-      consumeRequestTopics = new HashMap<String, HashMap<Integer, Long>>();
+      consumeRequestTopics = new HashMap<String, HashMap<Long, Long>>();
     } else if (requestType == TankClient.PUBLISH_REQ) {
-      publishRequestTopics = new HashMap<String, HashMap<Integer, Bundle>>();
+      publishRequests = new HashMap<String, HashMap<Long, Bundle>>();
     } else {
       throw new TankException(
           "Request Type can only be TankClient.CONSUME_REQ or TankClient.PUBLISH_REQ");
@@ -43,7 +45,7 @@ public class TankRequest {
    */
   public void consumeTopicPartition(
       String topicName,
-      int partition,
+      long partition,
       long seqId)
       throws TankException {
 
@@ -53,7 +55,9 @@ public class TankRequest {
     if (consumeRequestTopics.containsKey(topicName)) {
       consumeRequestTopics.get(topicName).put(partition, seqId);
     } else {
-      consumeRequestTopics.put(topicName, new HashMap<Integer, Long>(partition, seqId));
+      HashMap<Long, Long> toPut = new HashMap<Long, Long>();
+      toPut.put(partition, seqId);
+      consumeRequestTopics.put(topicName, toPut);
     }
   }
 
@@ -66,23 +70,23 @@ public class TankRequest {
    */
   public void publishMessage(
       String topicName,
-      int partition,
+      long partition,
       TankMessage message)
       throws TankException {
 
     if (requestType != TankClient.PUBLISH_REQ) {
       throw new TankException("Can only add publish messages to PUBLISH TankRequests");
     }
-    if (publishRequestTopics.containsKey(topicName)) {
-      if (publishRequestTopics.get(topicName).containsKey(partition)) {
-        publishRequestTopics.get(topicName).get(partition).addMsg(message);
+    if (publishRequests.containsKey(topicName)) {
+      if (publishRequests.get(topicName).containsKey(partition)) {
+        publishRequests.get(topicName).get(partition).addMsg(message);
       } else {
-        publishRequestTopics.get(topicName).put(partition, new Bundle(message));
+        publishRequests.get(topicName).put(partition, new Bundle(message));
       }
     } else {
-      HashMap<Integer, Bundle> toPut = new HashMap<Integer, Bundle>();
+      HashMap<Long, Bundle> toPut = new HashMap<Long, Bundle>();
       toPut.put(partition, new Bundle(message));
-      publishRequestTopics.put(topicName, toPut);
+      publishRequests.put(topicName, toPut);
     }
   }
 
@@ -107,14 +111,14 @@ public class TankRequest {
    */
   private byte[] serializeConsumeRequest() throws IOException, TankException {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    HashMap<Integer, Long> partitionRequest;
+    HashMap<Long, Long> partitionRequest;
     for (String topic : consumeRequestTopics.keySet()) {
       baos.write(ByteManipulator.getStr8(topic));
 
       partitionRequest = consumeRequestTopics.get(topic);
       baos.write(ByteManipulator.serialize(partitionRequest.size(), TankClient.U8));
 
-      for (int partition : partitionRequest.keySet()) {
+      for (long partition : partitionRequest.keySet()) {
         baos.write(ByteManipulator.serialize(partition, TankClient.U16));
         baos.write(ByteManipulator.serialize(partitionRequest.get(partition), TankClient.U64));
         baos.write(ByteManipulator.serialize(fetchSize, TankClient.U32));
@@ -128,21 +132,32 @@ public class TankRequest {
    */
   private byte[] serializePublishRequest() throws IOException, TankException {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    HashMap<Integer, Bundle> partitionRequest;
-    for (String topic : publishRequestTopics.keySet()) {
+    HashMap<Long, Bundle> partitionRequest;
+    publishRequestTopics = new ArrayList<SimpleEntry<String, Long>>();
+
+    for (String topic : publishRequests.keySet()) {
       baos.write(ByteManipulator.getStr8(topic));
 
-      partitionRequest = publishRequestTopics.get(topic);
+      partitionRequest = publishRequests.get(topic);
       baos.write(ByteManipulator.serialize(partitionRequest.size(), TankClient.U8));
 
-      for (int partition : partitionRequest.keySet()) {
+      for (long partition : partitionRequest.keySet()) {
         baos.write(ByteManipulator.serialize(partition, TankClient.U16));
         byte[] bb = partitionRequest.get(partition).serialize();
         baos.write(ByteManipulator.getVarInt(bb.length));
         baos.write(bb);
+
+        publishRequestTopics.add(new AbstractMap.SimpleEntry<String, Long>(topic, partition));
       }
     }
     return baos.toByteArray();
+  }
+
+  /**
+   * Returns a list with topic, partition tuples in the same order as the request
+   */
+  ArrayList<SimpleEntry<String, Long>> getTopicPartitions() {
+    return publishRequestTopics;
   }
 
   /**
@@ -152,7 +167,7 @@ public class TankRequest {
     if (requestType == TankClient.CONSUME_REQ) {
       return consumeRequestTopics.size();
     } else {
-      return publishRequestTopics.size();
+      return publishRequests.size();
     }
   }
 
@@ -215,8 +230,9 @@ public class TankRequest {
     private ArrayList<TankMessage> messages;
   }
 
-  private HashMap<String, HashMap<Integer, Long>> consumeRequestTopics;
-  private HashMap<String, HashMap<Integer, Bundle>> publishRequestTopics;
+  private HashMap<String, HashMap<Long, Long>> consumeRequestTopics;
+  private HashMap<String, HashMap<Long, Bundle>> publishRequests;
+  private ArrayList<SimpleEntry<String, Long>> publishRequestTopics;
   private long fetchSize = 20000L;
   private Logger log;
   private short requestType;
