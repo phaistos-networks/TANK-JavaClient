@@ -352,7 +352,7 @@ public class TankClient {
             if (i == 0) {
               //do nothing. curSeqNum is already set.
             } else if ((flags & SEQ_NUM_PREV_PLUS_ONE) != 0) {
-              log.fine ("SEQ_NUM_PREV_PLUS_ONE");
+              log.fine("SEQ_NUM_PREV_PLUS_ONE");
               curSeqNum = prevSeqNum + 1;
             } else if (i != (messageCount - 1)) {
               curSeqNum = (chunkMsgs.getVarInt() + 1 + prevSeqNum);
@@ -777,17 +777,17 @@ public class TankClient {
   private byte [] clientId;
 
   private static final long FETCH_SIZE_LEEWAY = 10000L;
-  private static final int U16_MAX = 65535;
-  private static final int U8_MAX = 255;
-  private static final int U4_MAX = 15;
+  public static final int U16_MAX = 65535;
+  public static final int U8_MAX = 255;
+  public static final int U4_MAX = 15;
 
   public static final byte HAVE_KEY = 1;
   public static final byte USE_LAST_SPECIFIED_TS = 2;
   public static final byte SEQ_NUM_PREV_PLUS_ONE = 4;
   private static final long RETRY_INTERVAL = 50;
 
-  private static final short PUBLISH_REQ = 1;
-  private static final short CONSUME_REQ = 2;
+  public static final short PUBLISH_REQ = 1;
+  public static final short CONSUME_REQ = 2;
   private static final short PING_REQ = 3;
 
   public static final byte U8 = 1;
