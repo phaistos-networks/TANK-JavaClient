@@ -318,6 +318,8 @@ public class TankClient {
             lastMessageNum = input.getVarInt() + 1 + firstMessageNum;
             log.finer("Last message: " + lastMessageNum);
           }
+        } else {
+          firstMessageNum = c.baseAbsSeqNum;
         }
 
         ByteManipulator chunkMsgs;
@@ -337,25 +339,28 @@ public class TankClient {
 
         long timestamp = 0L;
         long prevSeqNum = firstMessageNum;
+        if (curSeqNum == 0) {
+          curSeqNum = firstMessageNum;
+        }
+
         for (int i = 0; i < messageCount; i++) {
-          if (curSeqNum == 0) {
-            curSeqNum = c.baseAbsSeqNum - 1;
-          }
           log.finer("#### Message " + (i + 1) + " out of " + messageCount);
           flags = (byte)chunkMsgs.deSerialize(U8);
           log.finer(String.format("flags : %d", flags));
+
           if (sparse == 1) {
             if (i == 0) {
-              log.finer("seq num: " + firstMessageNum);
-            } else if (i != 0 && i != (messageCount - 1)) {
+              //do nothing. curSeqNum is already set.
+            } else if ((flags & SEQ_NUM_PREV_PLUS_ONE) != 0) {
+              log.fine ("SEQ_NUM_PREV_PLUS_ONE");
+              curSeqNum = prevSeqNum + 1;
+            } else if (i != (messageCount - 1)) {
               curSeqNum = (chunkMsgs.getVarInt() + 1 + prevSeqNum);
-              log.finer("seq num: " + curSeqNum);
-              prevSeqNum = curSeqNum;
             } else {
-              log.finer("seq num: " + lastMessageNum);
+              curSeqNum = lastMessageNum;
             }
-          } else {
-            curSeqNum++;
+            log.finer("sparse msg: " + i + " seq num: " + curSeqNum);
+            prevSeqNum = curSeqNum;
           }
           log.finer("cur seq num: " + curSeqNum);
 
@@ -367,7 +372,7 @@ public class TankClient {
           }
 
           String key = new String();
-          if ((flags & HAVE_KEY) == 1) {
+          if ((flags & HAVE_KEY) != 0) {
             key = chunkMsgs.getStr8();
             log.finer("We have a key and it is : " + key);
           }
@@ -382,6 +387,7 @@ public class TankClient {
           if (curSeqNum >= minSeqNum) {
             messages.add(new TankMessage(curSeqNum, timestamp, key.getBytes(), message));
           }
+          curSeqNum++;
         }
       }
     }
@@ -777,6 +783,7 @@ public class TankClient {
 
   public static final byte HAVE_KEY = 1;
   public static final byte USE_LAST_SPECIFIED_TS = 2;
+  public static final byte SEQ_NUM_PREV_PLUS_ONE = 4;
   private static final long RETRY_INTERVAL = 50;
 
   private static final short PUBLISH_REQ = 1;
