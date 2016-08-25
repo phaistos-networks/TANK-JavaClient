@@ -18,6 +18,8 @@ public class TankRequest {
    * Constructor.
    *
    * @param requestType can be TankClient.PUBLISH_REQ or TankClient.CONSUME_REQ
+   *
+   * @throws TankException if any other requestType is given.
    */
   public TankRequest(short requestType) throws TankException {
     log = Logger.getLogger("tankClient");
@@ -85,12 +87,12 @@ public class TankRequest {
   }
 
   /**
-   * serializes the current TankRequest into a byte array,
+   * Serializes the current TankRequest into a byte array,
    * suitable for sending to the TANK broker.
    *
    * @return the serialized byte array to be sent.
    */
-  public byte[] serialize() throws IOException, TankException {
+  byte[] serialize() throws IOException, TankException {
     if (requestType == TankClient.CONSUME_REQ) {
       return serializeConsumeRequest();
     } else {
@@ -99,7 +101,7 @@ public class TankRequest {
   }
 
   /**
-   * the serialization method for consume requests.
+   * The serialization method for consume requests.
    *
    * @return the serialized data
    */
@@ -122,9 +124,7 @@ public class TankRequest {
   }
 
   /**
-   * the serialization method for publish requests.
-   *
-   * @return the serialized data
+   * The serialization method for publish requests.
    */
   private byte[] serializePublishRequest() throws IOException, TankException {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -146,11 +146,9 @@ public class TankRequest {
   }
 
   /**
-   * access method.
-   *
-   * @return the count of topics contained in this request.
+   * Return how many topics are in this request.
    */
-  public int getTopicsCount() {
+  int getTopicsCount() {
     if (requestType == TankClient.CONSUME_REQ) {
       return consumeRequestTopics.size();
     } else {
@@ -159,12 +157,19 @@ public class TankRequest {
   }
 
   /**
-   * see tank_encoding.md for bundle details.
+   * See tank_encoding.md for bundle details.
    */
   private class Bundle {
 
     /**
-     * constructor for new bundle.
+     * Constructor for new empty bundle.
+     */
+    private Bundle() {
+      this.messages = new ArrayList<TankMessage>();
+    }
+
+    /**
+     * Constructor for new bundle.
      *
      * @param message the first message to be included in the bundle
      */
@@ -174,19 +179,14 @@ public class TankRequest {
     }
 
     /**
-     * add TankMessage to bundle.
-     *
-     * @param message tankMessage to add to this bundle
+     * Add TankMessage to bundle.
      */
     void addMsg(TankMessage message) {
       messages.add(message);
     }
 
-
     /**
-     * serialize bundle into array of bytes.
-     *
-     * @return properly encoded byte[]
+     * Serialize bundle into array of bytes.
      */
     public byte[] serialize() {
       ByteArrayOutputStream baos = new ByteArrayOutputStream();

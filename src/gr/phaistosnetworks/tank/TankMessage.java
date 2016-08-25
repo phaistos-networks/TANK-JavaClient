@@ -5,23 +5,16 @@ import java.io.IOException;
 
 
 /**
- * A tank message is an object with sequence id, ts and data.
- *
- * @author Robert Krambovitis @rkrambovitis
+ * A tank message is an object with sequenceId, timestamp and data.
  */
 public class TankMessage {
 
   /**
-   * Constructor with sequence id, i.e. for response.
-   *
-   * @param seqId sequence id
-   * @param ts timestamp
-   * @param key message key
-   * @param message the data. It is arbitrary byte array, not string.
+   * Constructor with sequence id, used in consume request.
    */
-  public TankMessage(long seqId, long ts, byte[] key, byte[] message) {
-    this.seqId = seqId;
-    this.timestamp = ts;
+  public TankMessage(long sequenceId, long timestamp, byte[] key, byte[] message) {
+    this.seqId = sequenceId;
+    this.timestamp = timestamp;
     this.message = message;
     this.key = key;
 
@@ -33,10 +26,7 @@ public class TankMessage {
   }
 
   /**
-   * Constructor without sequence id, i.e. for publish.
-   *
-   * @param key message key
-   * @param message the data. It is arbitrary byte array, not string.
+   * Constructor without sequence id used for publish requests.
    */
   public TankMessage(byte[] key, byte[] message) {
     this.key = key;
@@ -49,9 +39,7 @@ public class TankMessage {
   }
 
   /**
-   * Constructor without sequence id or key, i.e. for publish.
-   *
-   * @param message the data. It is arbitrary byte array, not string.
+   * Constructor without sequence id or key used for publish requests.
    */
   public TankMessage(byte[] message) {
     haveKey = false;
@@ -59,12 +47,12 @@ public class TankMessage {
   }
 
   /**
-   * serialize tank message into byte array.
+   * Serialize tank message into byte array.
    *
    * @param useLastTs set current timestamp or skip and use last set timestamp
    * @return serialized byte array
    */
-  public byte[] serialize(boolean useLastTs) throws IOException, TankException {
+  byte[] serialize(boolean useLastTs) throws IOException, TankException {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
 
     byte flags = 0;
@@ -90,45 +78,35 @@ public class TankMessage {
   }
 
   /**
-   * gets the message sequence id.
-   *
-   * @return the sequence id
+   * Returns the message sequence id.
    */
   public long getSeqId() {
     return seqId;
   }
 
   /**
-   * gets the message's timestamp.
-   *
-   * @return the timestamp
+   * Returns the message's timestamp.
    */
   public long getTimestamp() {
     return timestamp;
   }
 
   /**
-   * gets the message.
-   *
-   * @return the message
+   * Returns the message.
    */
   public byte[] getMessage() {
     return message;
   }
 
   /**
-   * does this message have a key?.
-   *
-   * @return drumroll
+   * Does if this message has a key.
    */
   public boolean haveKey() {
     return haveKey;
   }
 
   /**
-   * Get the key.
-   *
-   * @return the key
+   * Returns the message's key.
    */
   public byte[] getKey() {
     return key;

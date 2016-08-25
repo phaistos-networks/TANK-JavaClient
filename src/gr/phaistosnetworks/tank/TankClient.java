@@ -15,8 +15,6 @@ import java.util.logging.Logger;
 
 /**
  * TankClient implementation for java.
- *
- * @author Robert Krambovitis @rkrambovitis
  */
 public class TankClient {
 
@@ -25,9 +23,6 @@ public class TankClient {
    * Upon initialization TankClient will attempt to connect to server.
    * Upon success, it will check for ping response from server.
    * If it's unsuccesful and error will be logged, and it will retry indefinately.
-   *
-   * @param tankHost tank host to connect to
-   * @param tankPort tank port to connect to
    */
   public TankClient(String tankHost, int tankPort) {
     this.tankHost = tankHost;
@@ -387,7 +382,7 @@ public class TankClient {
           long contentLength = chunkMsgs.getVarInt();
           log.finer("Content Length: " + contentLength);
 
-          byte [] message = chunkMsgs.get((int)contentLength);
+          byte [] message = chunkMsgs.getNextBytes((int)contentLength);
           log.finest(new String(message));
 
           // Don't save the message if it has a sequence number lower than we requested.
@@ -448,8 +443,6 @@ public class TankClient {
   /**
    * publishes an ArrayList of messages to tank server.
    *
-   * @param topic the topic to publish to
-   * @param partition the partition to publish to
    * @param msgs the ArrayList of messages to publish
    */
   public void publish(

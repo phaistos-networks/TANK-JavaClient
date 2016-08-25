@@ -7,38 +7,35 @@ import java.io.UnsupportedEncodingException;
 
 /**
  * Purpose: To perform magic tricks on bytes.
- * Serializing / deserializing / transforming to and from str8 and varints.
- *
- * @author Robert Krambovitis @rkrambovitis
  */
 public class ByteManipulator {
   /**
    * Constructor that sets the byte array to be manipulated.
    *
-   * @param in the byte array to be manipulated;
+   * @param input the byte array to be manipulated;
    */
-  public ByteManipulator(byte[] in) {
-    input = in;
-    offset = 0;
+  public ByteManipulator(byte[] input) {
+    this.input = input;
+    this.offset = 0;
   }
 
   /**
    * Appends a byte array to the current one.
    *
-   * @param in the byte array to append.
+   * @param toAppend the byte array to append.
    */
-  public void append(byte[] in) {
-    byte [] souma = new byte[input.length + in.length];
+  public void append(byte[] toAppend) {
+    byte [] souma = new byte[input.length + toAppend.length];
 
     for (int i = 0; i < input.length; i++) {
       souma[i] = input[i];
     }
 
-    for (int i = 0; i < in.length; i++) {
-      souma[input.length + i] = in[i];
+    for (int i = 0; i < toAppend.length; i++) {
+      souma[input.length + i] = toAppend[i];
     }
 
-    input = souma;
+    this.input = souma;
   }
 
   /**
@@ -48,7 +45,7 @@ public class ByteManipulator {
    * @param length the amount of bytes to return
    * @return a byte array containing the requested length of bytes
    */
-  public byte[] get(int length) {
+  public byte[] getNextBytes(int length) {
     byte [] bar = new byte[length];
     for (int i = 0; i < length; i++) {
       bar[i] = input[offset + i];
@@ -61,7 +58,7 @@ public class ByteManipulator {
    * Uncompress the next length bytes using the snappy library.
    *
    * @param length the amount of bytes to uncompress
-   * @return a byte array containing the uncompressed data.
+   * @return the uncompressed data.
    */
   public byte[] snappyUncompress(long length) throws IOException {
     byte [] toUnCompress = new byte[(int)length];
@@ -77,7 +74,7 @@ public class ByteManipulator {
    *
    * @param length the length of the returned byte array
    * @param data the long to process.
-   * @return a byte array that contains the serialized data.
+   * @return the serialized data.
    */
   public static byte[] serialize(long data, int length) {
     byte[] output = new byte[length];
@@ -94,7 +91,7 @@ public class ByteManipulator {
    * Deserializes the next length bytes and returns a long.
    *
    * @param length the amount of bytes to deserialize.
-   * @return the long value of those bytes.
+   * @return the value of those bytes.
    */
   public long deSerialize(int length) {
     long result = 0L;
@@ -109,17 +106,18 @@ public class ByteManipulator {
   }
 
   /**
-   * sets the leftmost bit to 0
+   * Sets the leftmost bit to 0
+   * int is used due to need of unsigned bytes.
    *
    * @param toFlip the byte to flip
-   * @return int containing the byte. int is used due to need of unsigned bytes.
+   * @return int containing the byte.
    */
   private int flipped(byte toFlip) {
     return asInt(toFlip & ~(1 << VARINT_BYTE_SHIFT_ONE));
   }
 
   /**
-   * flips the leftmost bit of the last byte of a long.
+   * Flips the leftmost bit of the last byte of a long.
    *
    * @param toFlip the long that needs it's last byte flipped.
    * @return the flipped byte
@@ -129,7 +127,7 @@ public class ByteManipulator {
   }
 
   /**
-   * returns the integer value of a byte, as if it was unsigned.
+   * Returns the integer value of a byte, as if it was unsigned.
    *
    * @param val the value to get integer value for.
    * @return positive integer value of that byte.
@@ -143,9 +141,9 @@ public class ByteManipulator {
   }
 
   /**
-   * reads a varint from the next unprocessed bytes of the current array.
+   * Reads a varint from the next unprocessed bytes of the current array.
    *
-   * @return the long value of the varint
+   * @return the value of the varint
    */
   public long getVarInt() {
     long result = 0;
@@ -190,13 +188,13 @@ public class ByteManipulator {
 
 
   /**
-   * transforms a long into a varint byte array.
+   * Transforms a long into a varint byte array.
    * The implementation is based on @mpapadakis varint conversion.
    * It is hard coded up to 5 bytes long, so it can support 32bit unsigned integers.
    * Anything more than that and it will blow up in your face.
    *
    * @param num the number to be transformed
-   * @return the varint byte array
+   * @return the varint
    */
   public static byte[] getVarInt(long num) throws TankException {
     if (num > UINT32_MAX) {
@@ -234,9 +232,7 @@ public class ByteManipulator {
   }
 
   /**
-   * returns a String using the str8 notation.
-   *
-   * @return a string containing the data.
+   * Returns a String using the str8 notation.
    */
   public String getStr8() {
     int length = asInt(input[offset]);
@@ -251,20 +247,18 @@ public class ByteManipulator {
   }
 
   /**
-   * returns a byte array in str8 notation of the given String.
+   * Returns a byte array in str8 notation of the given String.
    *
-   * @param data the string to encode into a str8
-   * @return a byte array containing the length of the string followed by the data
+   * @param data the string to encode
    */
   public static byte[] getStr8(String data) throws TankException, UnsupportedEncodingException {
     return getStr8(data.getBytes("ASCII"));
   }
 
   /**
-   * returns a byte array in str8 notation of the given byte[].
+   * Returns a byte array in str8 notation of the given byte[].
    *
-   * @param data the byte[] to encode into a str8
-   * @return a byte array containing the length of the string followed by the data
+   * @param data the byte[] to encode
    */
   public static byte[] getStr8(byte[] data) throws TankException {
     if (data.length > BYTE_MAX) {
@@ -281,9 +275,7 @@ public class ByteManipulator {
   }
 
   /**
-   * access method to check the remaining unprocessed amount of bytes
-   *
-   * @return the remaining unprocessed byte count.
+   * Returns the amount of unprocessed bytes left.
    */
   public int getRemainingLength() {
     return input.length - offset;
@@ -302,9 +294,7 @@ public class ByteManipulator {
   }
 
   /**
-   * Gets current count of processed bytes.
-   *
-   * @return the count of processed bytes
+   * Retuns the current count of processed bytes.
    */
   public int getOffset() {
     return offset;
