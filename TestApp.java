@@ -148,21 +148,38 @@ class TestApp {
 
     TankClient tc = new TankClient(host, port);
     if (doProduce) {
-      TankResponse tr = tc.publish(publish);
+      ArrayList<TankResponse> response = tc.publish(publish);
       //tc.publish(topic, partition, pushData);
-      if (tr.hasErrors()) {
-        for (TankError te : tr.getErrors()) {
-          if (te.getError() == TankClient.ERROR_NO_SUCH_TOPIC) {
-            System.out.println("Error, topic " + te.getTopic() + " does not exist !");
-          } else if (te.getError() == TankClient.ERROR_NO_SUCH_PARTITION) {
-            System.out.println("Error, topic " + te.getTopic() + " doe not have a partition " + te.getPartition());
+      for (TankResponse tr : response) {
+        if (tr.hasError()) {
+          if (tr.getError() == TankClient.ERROR_NO_SUCH_TOPIC) {
+            System.out.println("Error, topic " + tr.getTopic() + " does not exist !");
+          } else if (tr.getError() == TankClient.ERROR_NO_SUCH_PARTITION) {
+            System.out.println("Error, topic " + tr.getTopic() + " doe not have a partition " + tr.getPartition());
           } else {
-            System.out.println("Unknown error for topic: " + te.getTopic() + " partition: " + te.getPartition());
+            System.out.println("Unknown error for topic: " + tr.getTopic() + " partition: " + tr.getPartition());
           }
         }
       }
     }
 
+
+    TankRequest consume = new TankRequest(TankClient.CONSUME_REQ);
+    consume.consumeTopicPartition(topic, partition, id);
+    if (consumate) {
+      ArrayList<TankResponse> response = tc.consume(consume);
+      for (TankResponse tr : response) {
+        System.out.println("topic: " + tr.getTopic() + " partition: " + tr.getPartition());
+        for (TankMessage tm : tr.getMessages()) {
+          System.out.println("seq: " + tm.getSeqId()
+              + " ts: " + tm.getTimestamp()
+              + " key: " + new String(tm.getKey())
+              + " message: " + new String(tm.getMessage()));
+          id = tm.getSeqId() + 1;
+        }
+        System.out.println("Next Id : " + id);
+      }
+    }
     /*
     ArrayList<TankMessage> data = new ArrayList<TankMessage>();
     if (consumate) {

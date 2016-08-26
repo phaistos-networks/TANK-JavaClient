@@ -24,7 +24,7 @@ public class TankClient {
    * Constructor for the TankClient object.
    * Upon initialization TankClient will attempt to connect to server.
    * Upon success, it will check for ping response from server.
-   * If it's unsuccesful and error will be logged, and it will retry indefinately.
+   * If it's unsuccesful an error will be logged, and it will retry indefinately.
    */
   public TankClient(String tankHost, int tankPort) {
     this.tankHost = tankHost;
@@ -117,7 +117,7 @@ public class TankClient {
    *
    * @param topics requested topics, used to crosscheck min reqSeqNum.
    */
-  private TankResponse poll(short requestType, TankRequest request) throws TankException {
+  private ArrayList<TankResponse> poll(short requestType, TankRequest request) throws TankException {
     messages = new ArrayList<TankMessage>();
     ByteManipulator input = new ByteManipulator(null);
     int remainder = 0;
@@ -180,7 +180,7 @@ public class TankClient {
       log.fine("payload size: " + payloadSize);
 
       if (requestType == CONSUME_REQ) {
-        //return processMessages(input, request);
+        return processConsumeResponse(input, request);
       } else if (requestType == PUBLISH_REQ) {
         return getPubResponse(input, request);
       }
@@ -190,13 +190,13 @@ public class TankClient {
       }
       break;
     }
-    return new TankResponse(0);
+    return new ArrayList<TankResponse>();
   }
 
   /**
    * Send consume request to broker.
    */
-  public TankResponse consume(TankRequest request) throws TankException {
+  public ArrayList<TankResponse> consume(TankRequest request) throws TankException {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     log.info("Issuing consume with " + request.getTopicsCount() + " topics");
 
@@ -240,10 +240,8 @@ public class TankClient {
    *
    * @param input a ByteManipulator object containing the data received from server.
    */
-  private TankResponse getConsumeResponse(ByteManipulator input, TankRequest request) {
-    TankResponse response = new TankResponse(input.deSerialize(U32));
-    ArrayList<Chunk> chunkList = processHeaders(input, request);
-
+  private ArrayList<TankResponse> getConsumeResponse(ByteManipulator input, TankRequest request) {
+    ArrayList<TankResponse> response = processConsumeResponse(input, request);
     return response;
   }
 
@@ -253,14 +251,14 @@ public class TankClient {
    * @param input the ByteManipulator object that contains the bytes received from server.
    * @param topics the request topics. Used to crosscheck between request and response.
    */
-  private ArrayList<Chunk> processHeaders(ByteManipulator input, TankRequest request) {
+  private ArrayList<TankResponse> processConsumeResponse(ByteManipulator input, TankRequest request) {
     ArrayList<Chunk> chunkList = new ArrayList<Chunk>();
     // Headers
     long headerSize  = input.deSerialize(U32);
-    long reqId = input.deSerialize(U32);
+    long requestId = input.deSerialize(U32);
     long totalTopics = input.deSerialize(U8);
     log.fine("header size: " + headerSize);
-    log.fine("reqid: " + reqId);
+    log.fine("reqid: " + requestId);
     log.fine(String.format("topics count: %d\n", totalTopics));
 
     for (int t = 0; t < totalTopics; t++) {
@@ -312,7 +310,7 @@ public class TankClient {
         }
       }
     }
-    return chunkList;
+    return processChunks(requestId, input, request, chunkList);
   }
 
   /**
@@ -322,13 +320,14 @@ public class TankClient {
    * @param topics the request topics. Used to crosscheck between request and response.
    * @param chunkList the chunkList as read from headers.
    */
-  private TankResponse processChunks(ByteManipulator input, TankRequest request, ArrayList<Chunk> chunkList) {
+  private ArrayList<TankResponse> processChunks(long requestId, ByteManipulator input, TankRequest request, ArrayList<Chunk> chunkList) {
     //Chunks
-    TankResponse response = new TankResponse(0L);
+    ArrayList<TankResponse> response = new ArrayList<TankResponse>();
     long curSeqNum = 0;
     long bundleLength = 0;
     long minSeqNum = 0L;
     for (Chunk c : chunkList) {
+      TankResponse topicPartition = new TankResponse(c.topic, c.partition, c.errorOrFlags);
     /*
       for (Topic t : topics) {
         if (t.getName().equals(c.topic)) {
@@ -448,9 +447,10 @@ public class TankClient {
             messages.add(new TankMessage(curSeqNum, timestamp, key.getBytes(), message));
           }
           */
-          messages.add(new TankMessage(curSeqNum, timestamp, key.getBytes(), message));
+          topicPartition.addMessage(new TankMessage(curSeqNum, timestamp, key.getBytes(), message));
           curSeqNum++;
         }
+        response.add(topicPartition);
       }
     }
     return response;
@@ -460,7 +460,7 @@ public class TankClient {
   /**
    * Send publish request to broker.
    */
-  public TankResponse publish(TankRequest request) throws TankException {
+  public ArrayList<TankResponse> publish(TankRequest request) throws TankException {
     ByteArrayOutputStream baos  = new ByteArrayOutputStream();
     log.info("Issuing publish with " + request.getTopicsCount() + " topics");
 
@@ -509,13 +509,16 @@ public class TankClient {
    *
    * @param input a ByteManipulator object containing the data received from server.
    */
-  private TankResponse getPubResponse(ByteManipulator input, TankRequest tr) {
-    TankResponse response = new TankResponse(input.deSerialize(U32));
+  private ArrayList<TankResponse> getPubResponse(ByteManipulator input, TankRequest tr) {
+    ArrayList<TankResponse> response = new ArrayList<TankResponse>();//(input.deSerialize(U32));
+    log.fine("Getting response for Request id: " + input.deSerialize(U32));
+
     for (SimpleEntry<String, Long> tuple : tr.getTopicPartitions()) {
-      response.addPublishResponse(
-          tuple.getKey(),
-          tuple.getValue(),
-          input.deSerialize(U8));
+      response.add(
+          new TankResponse(
+              tuple.getKey(),
+              tuple.getValue(),
+              input.deSerialize(U8)));
     }
     return response;
   }
@@ -527,12 +530,9 @@ public class TankClient {
     /**
      * constructor.
      *
-     * @param t topic
-     * @param p partition
      * @param eof errorOrFlags
      * @param basn base absolute sequence number.
      * @param hwm high water mark
-     * @param l length
      */
     public Chunk(String topic, int partition, byte eof, long basn, long hwm, long length) {
       this.topic = topic;

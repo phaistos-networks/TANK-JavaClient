@@ -93,6 +93,7 @@ class Tool {
     publish.publishMessage("foo", 1, new TankMessage("partition does not exist".getBytes()));
     publish.publishMessage("bar", 0, new TankMessage("This topic does not exist".getBytes()));
 
+/*
     TankClient tc = new TankClient(host, port);
     if (false) {
       TankResponse tr = tc.publish(publish);
@@ -108,13 +109,16 @@ class Tool {
         }
       }
     }
+    */
 
+/*
     TankRequest consume = new TankRequest(TankClient.CONSUME_REQ);
     consume.consumeTopicPartition("foo", 0, 0);
     consume.consumeTopicPartition("foo", 0, 60);
     consume.consumeTopicPartition("foo", 1, 0);
     consume.consumeTopicPartition("bar", 0, 0);
     TankResponse tr = tc.consume(consume);
+    */
     /*
     if (doProduce) {
       tc.publish(topic, partition, pushData);
