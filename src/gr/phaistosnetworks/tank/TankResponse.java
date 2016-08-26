@@ -58,9 +58,31 @@ public class TankResponse {
     return partition;
   }
 
+  void setFetchSize(long fetchSize) {
+    this.fetchSize = fetchSize;
+  }
+
+  public long getFetchSize() {
+    return fetchSize;
+  }
+
+  void setRequestSeqId(long seqId) {
+    this.requestSeqId = seqId;
+  }
+
+  public long getNextSeqId() {
+    if (messages.size() == 0) {
+      return requestSeqId;
+    } else {
+      return (messages.get(messages.size() - 1).getSeqId()) + 1;
+    }
+  }
+
   private ArrayList<TankMessage> messages;
   private String topic;
   private long partition = 0L;
   private boolean hasError = false;
   private long error = 0L;
+  private long requestSeqId;
+  private long fetchSize;
 }

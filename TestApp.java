@@ -149,7 +149,6 @@ class TestApp {
     TankClient tc = new TankClient(host, port);
     if (doProduce) {
       ArrayList<TankResponse> response = tc.publish(publish);
-      //tc.publish(topic, partition, pushData);
       for (TankResponse tr : response) {
         if (tr.hasError()) {
           if (tr.getError() == TankClient.ERROR_NO_SUCH_TOPIC) {
@@ -165,35 +164,24 @@ class TestApp {
 
 
     TankRequest consume = new TankRequest(TankClient.CONSUME_REQ);
-    consume.consumeTopicPartition(topic, partition, id);
-    if (consumate) {
-      ArrayList<TankResponse> response = tc.consume(consume);
-      for (TankResponse tr : response) {
-        System.out.println("topic: " + tr.getTopic() + " partition: " + tr.getPartition());
-        for (TankMessage tm : tr.getMessages()) {
-          System.out.println("seq: " + tm.getSeqId()
-              + " ts: " + tm.getTimestamp()
-              + " key: " + new String(tm.getKey())
-              + " message: " + new String(tm.getMessage()));
-          id = tm.getSeqId() + 1;
-        }
-        System.out.println("Next Id : " + id);
-      }
-    }
-    /*
-    ArrayList<TankMessage> data = new ArrayList<TankMessage>();
+    consume.consumeTopicPartition(topic, partition, id, 20000L);
+    ArrayList<TankResponse> response;
+
     if (consumate) {
       while (true) {
-        data = tc.consume(topic, partition, id);
-        for (TankMessage tm : data) {
-          System.out.println("seq: " + tm.getSeqId()
-              + " ts: " + tm.getTimestamp()
-              + " key: " + new String(tm.getKey())
-              + " message: " + new String(tm.getMessage()));
-          id = tm.getSeqId() + 1;
+        response = tc.consume(consume);
+        consume = new TankRequest(TankClient.CONSUME_REQ);
+        for (TankResponse tr : response) {
+          System.out.println("topic: " + tr.getTopic() + " partition: " + tr.getPartition());
+          for (TankMessage tm : tr.getMessages()) {
+            System.out.println("seq: " + tm.getSeqId()
+                + " ts: " + tm.getTimestamp()
+                + " key: " + new String(tm.getKey())
+                + " message: " + new String(tm.getMessage()));
+          }
+          consume.consumeTopicPartition(tr.getTopic(), tr.getPartition(), tr.getNextSeqId(), tr.getFetchSize());
         }
       }
     }
-    */
   }
 }

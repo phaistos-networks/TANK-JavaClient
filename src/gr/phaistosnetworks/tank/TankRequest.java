@@ -3,7 +3,7 @@ package gr.phaistosnetworks.tank;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
-import java.util.AbstractMap;
+//import java.util.AbstractMap;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -27,7 +27,7 @@ public class TankRequest {
     log = Logger.getLogger("tankClient");
     this.requestType = requestType;
     if (requestType == TankClient.CONSUME_REQ) {
-      consumeRequestTopics = new HashMap<String, HashMap<Long, Long>>();
+      consumeRequestTopics = new HashMap<String, HashMap<Long, SimpleEntry<Long, Long>>>();
     } else if (requestType == TankClient.PUBLISH_REQ) {
       publishRequests = new HashMap<String, HashMap<Long, Bundle>>();
     } else {
@@ -46,17 +46,20 @@ public class TankRequest {
   public void consumeTopicPartition(
       String topicName,
       long partition,
-      long seqId)
+      long seqId,
+      long fetchSize)
       throws TankException {
 
     if (requestType != TankClient.CONSUME_REQ) {
       throw new TankException("Can only add consumeTopicPartitions to CONSUME TankRequests");
     }
     if (consumeRequestTopics.containsKey(topicName)) {
-      consumeRequestTopics.get(topicName).put(partition, seqId);
+      consumeRequestTopics.get(topicName).put(
+          partition, 
+          new SimpleEntry<Long, Long>(seqId, fetchSize));
     } else {
-      HashMap<Long, Long> toPut = new HashMap<Long, Long>();
-      toPut.put(partition, seqId);
+      HashMap<Long, SimpleEntry<Long, Long>> toPut = new HashMap<Long, SimpleEntry<Long, Long>>();
+      toPut.put(partition, new SimpleEntry<Long, Long>(seqId, fetchSize));
       consumeRequestTopics.put(topicName, toPut);
     }
   }
@@ -111,7 +114,7 @@ public class TankRequest {
    */
   private byte[] serializeConsumeRequest() throws IOException, TankException {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    HashMap<Long, Long> partitionRequest;
+    HashMap<Long, SimpleEntry<Long, Long>> partitionRequest;
     for (String topic : consumeRequestTopics.keySet()) {
       baos.write(ByteManipulator.getStr8(topic));
 
@@ -120,8 +123,8 @@ public class TankRequest {
 
       for (long partition : partitionRequest.keySet()) {
         baos.write(ByteManipulator.serialize(partition, TankClient.U16));
-        baos.write(ByteManipulator.serialize(partitionRequest.get(partition), TankClient.U64));
-        baos.write(ByteManipulator.serialize(fetchSize, TankClient.U32));
+        baos.write(ByteManipulator.serialize(partitionRequest.get(partition).getKey(), TankClient.U64));
+        baos.write(ByteManipulator.serialize(partitionRequest.get(partition).getValue(), TankClient.U32));
       }
     }
     return baos.toByteArray();
@@ -147,7 +150,7 @@ public class TankRequest {
         baos.write(ByteManipulator.getVarInt(bb.length));
         baos.write(bb);
 
-        publishRequestTopics.add(new AbstractMap.SimpleEntry<String, Long>(topic, partition));
+        publishRequestTopics.add(new SimpleEntry<String, Long>(topic, partition));
       }
     }
     return baos.toByteArray();
@@ -170,6 +173,14 @@ public class TankRequest {
       return publishRequests.size();
     }
   }
+
+  long getSequenceId(String topic, long partition) {
+    return consumeRequestTopics.get(topic).get(partition).getKey();
+  }
+
+
+
+
 
   /**
    * See tank_encoding.md for bundle details.
@@ -230,10 +241,11 @@ public class TankRequest {
     private ArrayList<TankMessage> messages;
   }
 
-  private HashMap<String, HashMap<Long, Long>> consumeRequestTopics;
+
+
+  private HashMap<String, HashMap<Long, SimpleEntry<Long, Long>>> consumeRequestTopics;
   private HashMap<String, HashMap<Long, Bundle>> publishRequests;
   private ArrayList<SimpleEntry<String, Long>> publishRequestTopics;
-  private long fetchSize = 20000L;
   private Logger log;
   private short requestType;
 }
