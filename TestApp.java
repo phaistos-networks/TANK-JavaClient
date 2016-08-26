@@ -4,7 +4,6 @@ import gr.phaistosnetworks.tank.TankException;
 import gr.phaistosnetworks.tank.TankMessage;
 import gr.phaistosnetworks.tank.TankRequest;
 import gr.phaistosnetworks.tank.TankResponse;
-import gr.phaistosnetworks.tank.TankError;
 
 import java.nio.charset.Charset;
 import java.util.ArrayList;
