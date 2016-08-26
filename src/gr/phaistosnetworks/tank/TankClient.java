@@ -280,7 +280,7 @@ public class TankClient {
 
           byte errorOrFlags = (byte)input.deSerialize(U8);
           log.fine("Partition : " + partition);
-          log.fine(String.format("ErrorOrFlags : %x\n", errorOrFlags));
+          log.fine(String.format("ErrorOrFlags : %x", errorOrFlags));
 
           if ((errorOrFlags & U8_MAX) == U8_MAX) {
             log.warning("Unknown Partition");

@@ -178,7 +178,13 @@ class TestApp {
                 + " key: " + new String(tm.getKey())
                 + " message: " + new String(tm.getMessage()));
           }
-          consume.consumeTopicPartition(tr.getTopic(), tr.getPartition(), tr.getNextSeqId(), tr.getFetchSize());
+          consume.consumeTopicPartition(
+              tr.getTopic(),
+              tr.getPartition(),
+              tr.getNextSeqId(),
+              (tr.getFetchSize() > 20000L) ? tr.getFetchSize() : 20000L
+          );
+          System.out.println("Next: " + tr.getTopic() + ":" + tr.getPartition() + " @" + tr.getNextSeqId() + " #"+tr.getFetchSize());
         }
       }
     }
