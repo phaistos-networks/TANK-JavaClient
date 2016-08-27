@@ -22,14 +22,13 @@ import gr.phaistosnetworks.tank.*;
 ```java
 TankClient tc = new TankClient(host, port);
 TankRequest pubReq = new TankRequest(TankClient.PUBLISH_REQ);
-publishMessage(
+pubRec.publishMessage(
   topic,
   partition,
   new TankMessage(
   key.getBytes(),
   message.getBytes()));
 
-data.add(new TankMessage(new String("Hello World").getBytes()));
 tc.publish(pubReq);
 ```
 
@@ -50,10 +49,11 @@ for (TankResponse tr : response) {
 ### Consume ###
 ```java
 TankClient tc = new TankClient(host, port);
-TankRequest consume = new TankRequest(TankClient.CONSUME_REQ);
-consume.consumeTopicPartition(topic, partition, id, fetchSize);
-List<TankResponse> response = tc.consume(consume);
-for (TankResponse tr : response) {
+TankRequest consumeReq = new TankRequest(TankClient.CONSUME_REQ);
+consumeReq.consumeTopicPartition(topic, partition, id, fetchSize);
+List<TankResponse> responses = tc.consume(consumeReq);
+
+for (TankResponse tr : responses) {
   System.out.println("topic: " + tr.getTopic() + " partition: " + tr.getPartition());
   for (TankMessage tm : tr.getMessages()) {
     System.out.println(
@@ -67,20 +67,22 @@ for (TankResponse tr : response) {
 
 ### Consume Next ###
 ```java
-List<TankResponse> response = tc.consume(consume);
-TankRequest consumeNext = new TankRequest(TankClient.CONSUME_REQ);
-for (TankResponse tr : response) {
-  if (tr.getFetchSize() > fetchSize) {
-    fetchSize = tr.getFetchSize();
+while (true) {
+  responses = tc.consume(consume);
+  consume = new TankRequest(TankClient.CONSUME_REQ);
+  for (TankResponse tr : responses) {
+
+    if (tr.getFetchSize() > fetchSize) {
+      fetchSize = tr.getFetchSize();
+    }
+
+    consume.consumeTopicPartition(
+        tr.getTopic(),
+        tr.getPartition(),
+        tr.getNextSeqId(),
+        fetchSize);
   }
-
-  consumeNext.consumeTopicPartition(
-      tr.getTopic(),
-      tr.getPartition(),
-      tr.getNextSeqId(),
-      fetchSize
 }
-
 
 ```
 
