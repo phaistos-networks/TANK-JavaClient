@@ -35,7 +35,7 @@ tc.publish(pubReq);
 
 ### Publish Response ###
 ```java
-ArrayList<TankResponse> response = tc.publish(pubReq);
+List<TankResponse> response = tc.publish(pubReq);
 for (TankResponse tr : response) {
   if (tr.hasError()) {
     if (tr.getError() == TankClient.ERROR_NO_SUCH_TOPIC) {
@@ -47,13 +47,12 @@ for (TankResponse tr : response) {
 }
 ```
 
-
 ### Consume ###
 ```java
 TankClient tc = new TankClient(host, port);
 TankRequest consume = new TankRequest(TankClient.CONSUME_REQ);
 consume.consumeTopicPartition(topic, partition, id, fetchSize);
-ArrayList<TankResponse> response = tc.consume(consume);
+List<TankResponse> response = tc.consume(consume);
 for (TankResponse tr : response) {
   System.out.println("topic: " + tr.getTopic() + " partition: " + tr.getPartition());
   for (TankMessage tm : tr.getMessages()) {
@@ -68,14 +67,18 @@ for (TankResponse tr : response) {
 
 ### Consume Next ###
 ```java
-ArrayList<TankResponse> response = tc.consume(consume);
+List<TankResponse> response = tc.consume(consume);
 TankRequest consumeNext = new TankRequest(TankClient.CONSUME_REQ);
 for (TankResponse tr : response) {
+  if (tr.getFetchSize() > fetchSize) {
+    fetchSize = tr.getFetchSize();
+  }
+
   consumeNext.consumeTopicPartition(
       tr.getTopic(),
       tr.getPartition(),
       tr.getNextSeqId(),
-      (tr.getFetchSize() > fetchSize) ? tr.getFetchSize() : fetchSize);
+      fetchSize
 }
 
 

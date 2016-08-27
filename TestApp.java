@@ -6,7 +6,7 @@ import gr.phaistosnetworks.tank.TankRequest;
 import gr.phaistosnetworks.tank.TankResponse;
 
 import java.nio.charset.Charset;
-import java.util.ArrayList;
+import java.util.List;
 
 class TestApp {
   public static void main(String[] args) throws Exception {
@@ -147,7 +147,7 @@ class TestApp {
 
     TankClient tc = new TankClient(host, port);
     if (doProduce) {
-      ArrayList<TankResponse> response = tc.publish(publish);
+      List<TankResponse> response = tc.publish(publish);
       for (TankResponse tr : response) {
         if (tr.hasError()) {
           if (tr.getError() == TankClient.ERROR_NO_SUCH_TOPIC) {
@@ -163,8 +163,8 @@ class TestApp {
 
 
     TankRequest consume = new TankRequest(TankClient.CONSUME_REQ);
-    consume.consumeTopicPartition(topic, partition, id, 20000L);
-    ArrayList<TankResponse> response;
+    consume.consumeTopicPartition(topic, partition, id, fetchSize);
+    List<TankResponse> response;
 
     if (consumate) {
       while (true) {
@@ -178,15 +178,19 @@ class TestApp {
                 + " key: " + new String(tm.getKey())
                 + " message: " + new String(tm.getMessage()));
           }
+          if (tr.getFetchSize() > fetchSize) {
+            fetchSize = tr.getFetchSize();
+          }
           consume.consumeTopicPartition(
               tr.getTopic(),
               tr.getPartition(),
               tr.getNextSeqId(),
-              (tr.getFetchSize() > 20000L) ? tr.getFetchSize() : 20000L
+              fetchSize
           );
-          System.out.println("Next: " + tr.getTopic() + ":" + tr.getPartition() + " @" + tr.getNextSeqId() + " #"+tr.getFetchSize());
+          //System.out.println("Next: " + tr.getTopic() + ":" + tr.getPartition() + " @" + tr.getNextSeqId() + " #"+tr.getFetchSize());
         }
       }
     }
   }
+  private static long fetchSize = 20000L;
 }

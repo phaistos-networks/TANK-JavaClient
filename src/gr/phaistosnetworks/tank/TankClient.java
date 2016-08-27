@@ -10,6 +10,7 @@ import java.net.Socket;
 
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
+import java.util.List;
 
 import java.util.logging.Handler;
 import java.util.logging.Level;
@@ -37,7 +38,6 @@ public class TankClient {
     }
     clientReqId = 0;
     log = Logger.getLogger("tankClient");
-    messages = new ArrayList<TankMessage>();
 
     try {
       while (true) {
@@ -112,13 +112,8 @@ public class TankClient {
    * It will loop and retry if there's no data.
    * If the data is incomplete, i.e. available less than payload,
    * then it will loop and append until payload size is reached.
-   * if the request was a consume, it will populate messages ArrayList.
-   * else if it was a publish, it will eat fried monkey brains.
-   *
-   * @param topics requested topics, used to crosscheck min reqSeqNum.
    */
-  private ArrayList<TankResponse> poll(short requestType, TankRequest request) throws TankException {
-    messages = new ArrayList<TankMessage>();
+  private List<TankResponse> poll(short requestType, TankRequest request) throws TankException {
     ByteManipulator input = new ByteManipulator(null);
     int remainder = 0;
     int toRead = 0;
@@ -196,9 +191,9 @@ public class TankClient {
   /**
    * Send consume request to broker.
    */
-  public ArrayList<TankResponse> consume(TankRequest request) throws TankException {
+  public List<TankResponse> consume(TankRequest request) throws TankException {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    log.info("Issuing consume with " + request.getTopicsCount() + " topics");
+    log.fine("Issuing consume with " + request.getTopicsCount() + " topics");
 
     try {
       baos.write((byte)CONSUME_REQ);
@@ -240,8 +235,8 @@ public class TankClient {
    *
    * @param input a ByteManipulator object containing the data received from server.
    */
-  private ArrayList<TankResponse> getConsumeResponse(ByteManipulator input, TankRequest request) {
-    ArrayList<TankResponse> response = processConsumeResponse(input, request);
+  private List<TankResponse> getConsumeResponse(ByteManipulator input, TankRequest request) {
+    List<TankResponse> response = processConsumeResponse(input, request);
     return response;
   }
 
@@ -251,7 +246,7 @@ public class TankClient {
    * @param input the ByteManipulator object that contains the bytes received from server.
    * @param topics the request topics. Used to crosscheck between request and response.
    */
-  private ArrayList<TankResponse> processConsumeResponse(ByteManipulator input, TankRequest request) {
+  private List<TankResponse> processConsumeResponse(ByteManipulator input, TankRequest request) {
     ArrayList<Chunk> chunkList = new ArrayList<Chunk>();
     // Headers
     long headerSize  = input.deSerialize(U32);
@@ -320,7 +315,7 @@ public class TankClient {
    * @param topics the request topics. Used to crosscheck between request and response.
    * @param chunkList the chunkList as read from headers.
    */
-  private ArrayList<TankResponse> processChunks(long requestId, ByteManipulator input, TankRequest request, ArrayList<Chunk> chunkList) {
+  private List<TankResponse> processChunks(long requestId, ByteManipulator input, TankRequest request, ArrayList<Chunk> chunkList) {
     //Chunks
     ArrayList<TankResponse> response = new ArrayList<TankResponse>();
     long curSeqNum = 0;
@@ -457,7 +452,7 @@ public class TankClient {
   /**
    * Send publish request to broker.
    */
-  public ArrayList<TankResponse> publish(TankRequest request) throws TankException {
+  public List<TankResponse> publish(TankRequest request) throws TankException {
     ByteArrayOutputStream baos  = new ByteArrayOutputStream();
     log.info("Issuing publish with " + request.getTopicsCount() + " topics");
 
@@ -506,7 +501,7 @@ public class TankClient {
    *
    * @param input a ByteManipulator object containing the data received from server.
    */
-  private ArrayList<TankResponse> getPubResponse(ByteManipulator input, TankRequest tr) {
+  private List<TankResponse> getPubResponse(ByteManipulator input, TankRequest tr) {
     ArrayList<TankResponse> response = new ArrayList<TankResponse>();//(input.deSerialize(U32));
     log.fine("Getting response for Request id: " + input.deSerialize(U32));
 
@@ -606,7 +601,6 @@ public class TankClient {
   private OutputStream socketOutputStream;
   private Logger log;
   private int clientReqId;
-  private ArrayList<TankMessage> messages;
   private long maxWait = 5000L;
   private long minBytes = 0L;
   private byte [] clientId;
