@@ -3,7 +3,6 @@ package gr.phaistosnetworks.tank;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
-//import java.util.AbstractMap;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -49,6 +48,8 @@ public class TankRequest {
       long seqId,
       long fetchSize)
       throws TankException {
+
+    log.fine("Adding request: " + topicName + ":" + partition + " @" + seqId + " #" + fetchSize);
 
     if (requestType != TankClient.CONSUME_REQ) {
       throw new TankException("Can only add consumeTopicPartitions to CONSUME TankRequests");

@@ -71,84 +71,22 @@ class TestApp {
 
     }
 
-    String host = new String("localhost");
-    String key = new String();
-    int port = 11011;
-    String topic = new String("foo");
-    int partition = 0;
-    String arg = new String();
-    long id = 0;
-    boolean consumate = false;
-    boolean doProduce = false;
-    //ArrayList<TankMessage> pushData = new ArrayList<TankMessage>();
+    TankClient tc = new TankClient("localhost", 11011);
+    List<TankResponse> responses;
+
     TankRequest publish = new TankRequest(TankClient.PUBLISH_REQ);
+    publish.publishMessage("foo", 0, new TankMessage("akey".getBytes(), "Some Random Text".getBytes()));
+    publish.publishMessage("foo", 0, new TankMessage("anotherkey".getBytes(), "Some other Random Text".getBytes()));
+    publish.publishMessage("foo", 0, new TankMessage("Who needs keys anyway?".getBytes()));
+    publish.publishMessage("foo", 1, new TankMessage("here, have some partition magic".getBytes()));
+    publish.publishMessage("foo", 1, new TankMessage("akey".getBytes(), "more partition magic".getBytes()));
+    publish.publishMessage("foo", 2, new TankMessage("This one should fail".getBytes()));
+    publish.publishMessage("bar", 0, new TankMessage("hello world".getBytes()));
+    publish.publishMessage("randomness", 0, new TankMessage("This should fail too".getBytes()));
 
-    for (int i = 0 ; i < args.length; i++) {
-      arg = args[i];
-      if (!arg.substring(0,1).equals("-")) {
-        continue;
-      }
-      switch (arg) {
-        case "-host":
-        case "--host":
-          host = args[++i];
-          break;
-        case "-port":
-        case "--port":
-          try {
-            port = Integer.parseInt(args[++i]);
-          } catch (NumberFormatException | ArrayIndexOutOfBoundsException nfe) {
-            System.out.println("This is not the port you are looking for. Using default 11011");
-          }
-          break;
-        case "-t":
-        case "-topic":
-          topic = args[++i];
-          break;
-        case "-p":
-        case "-partition":
-          try {
-            partition = Integer.parseInt(args[++i]);
-          } catch (NumberFormatException | ArrayIndexOutOfBoundsException nfe) {
-            System.out.println("I'll give you 0 now and 0 when we reach Alderaan. Partition 0.");
-          }
-          break;
-        case "-get":
-        case "-consume":
-          consumate = true;
-          try {
-            id = Long.parseLong(args[++i]);
-          } catch (NumberFormatException | ArrayIndexOutOfBoundsException nfe) {
-            System.out.println("I have a baad feeling about this. Commencing from sequence 0");
-          }
-          break;
-        case "-k":
-        case "-key":
-          key = args[++i];
-          break;
-        case "-put":
-        case "-set":
-        case "-publish":
-          doProduce = true;
-          //pushData = new ArrayList<TankMessage>();
-          for (i++; i < args.length; i++) {
-            publish.publishMessage(
-                topic,
-                partition,
-                new TankMessage(
-                    key.getBytes(),
-                    args[i].getBytes(Charset.forName("UTF-8"))));
-          }
-          break;
-        default:
-          continue;
-      }
-    }
-
-    TankClient tc = new TankClient(host, port);
-    if (doProduce) {
-      List<TankResponse> response = tc.publish(publish);
-      for (TankResponse tr : response) {
+    if (false) {
+      responses = tc.publish(publish);
+      for (TankResponse tr : responses) {
         if (tr.hasError()) {
           if (tr.getError() == TankClient.ERROR_NO_SUCH_TOPIC) {
             System.out.println("Error, topic " + tr.getTopic() + " does not exist !");
@@ -163,32 +101,32 @@ class TestApp {
 
 
     TankRequest consume = new TankRequest(TankClient.CONSUME_REQ);
-    consume.consumeTopicPartition(topic, partition, id, fetchSize);
-    List<TankResponse> response;
+    consume.consumeTopicPartition("foo", 0, 0, fetchSize);
+    //consume.consumeTopicPartition("foo", 1, 0, fetchSize);
+    consume.consumeTopicPartition("bar", 0, 0, fetchSize);
+    //consume.consumeTopicPartition("randomness", 0, 0, fetchSize);
 
-    if (consumate) {
-      while (true) {
-        response = tc.consume(consume);
-        consume = new TankRequest(TankClient.CONSUME_REQ);
-        for (TankResponse tr : response) {
-          System.out.println("topic: " + tr.getTopic() + " partition: " + tr.getPartition());
-          for (TankMessage tm : tr.getMessages()) {
-            System.out.println("seq: " + tm.getSeqId()
-                + " ts: " + tm.getTimestamp()
-                + " key: " + new String(tm.getKey())
-                + " message: " + new String(tm.getMessage()));
-          }
-          if (tr.getFetchSize() > fetchSize) {
-            fetchSize = tr.getFetchSize();
-          }
-          consume.consumeTopicPartition(
-              tr.getTopic(),
-              tr.getPartition(),
-              tr.getNextSeqId(),
-              fetchSize
-          );
-          //System.out.println("Next: " + tr.getTopic() + ":" + tr.getPartition() + " @" + tr.getNextSeqId() + " #"+tr.getFetchSize());
+    while (true) {
+      responses = tc.consume(consume);
+      consume = new TankRequest(TankClient.CONSUME_REQ);
+      for (TankResponse tr : responses) {
+        System.out.println("topic: " + tr.getTopic() + " partition: " + tr.getPartition());
+        for (TankMessage tm : tr.getMessages()) {
+          System.out.println("seq: " + tm.getSeqId()
+              + " ts: " + tm.getTimestamp()
+              + " key: " + new String(tm.getKey())
+              + " message: " + new String(tm.getMessage()));
         }
+        if (tr.getFetchSize() > fetchSize) {
+          fetchSize = tr.getFetchSize();
+        }
+        consume.consumeTopicPartition(
+            tr.getTopic(),
+            tr.getPartition(),
+            tr.getNextSeqId(),
+            fetchSize
+            );
+        System.out.println("Next: " + tr.getTopic() + ":" + tr.getPartition() + " @" + tr.getNextSeqId() + " #"+tr.getFetchSize());
       }
     }
   }

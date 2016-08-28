@@ -254,7 +254,7 @@ public class TankClient {
     long totalTopics = input.deSerialize(U8);
     log.fine("header size: " + headerSize);
     log.fine("reqid: " + requestId);
-    log.fine(String.format("topics count: %d\n", totalTopics));
+    log.fine(String.format("topics count: %d", totalTopics));
 
     for (int t = 0; t < totalTopics; t++) {
       String topic = input.getStr8();
@@ -318,10 +318,10 @@ public class TankClient {
   private List<TankResponse> processChunks(long requestId, ByteManipulator input, TankRequest request, ArrayList<Chunk> chunkList) {
     //Chunks
     ArrayList<TankResponse> response = new ArrayList<TankResponse>();
-    long curSeqNum = 0;
-    long bundleLength = 0;
-    long minSeqNum = 0L;
     for (Chunk c : chunkList) {
+      long curSeqNum = 0;
+      long bundleLength = 0;
+      long minSeqNum = 0L;
       TankResponse topicPartition = new TankResponse(c.topic, c.partition, c.errorOrFlags);
       minSeqNum = request.getSequenceId(c.topic, c.partition);
       topicPartition.setRequestSeqId(minSeqNum);
