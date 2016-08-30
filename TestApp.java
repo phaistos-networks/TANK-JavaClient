@@ -83,6 +83,7 @@ class TestApp {
     publish.publishMessage("foo", 2, new TankMessage("This one should fail".getBytes()));
     publish.publishMessage("bar", 0, new TankMessage("hello world".getBytes()));
     publish.publishMessage("randomness", 0, new TankMessage("This should fail too".getBytes()));
+    publish.publishMessage("randomness", 1, new TankMessage("aaand this".getBytes()));
 
     if (true) {
       responses = tc.publish(publish);
@@ -92,9 +93,11 @@ class TestApp {
           if (tr.getError() == TankClient.ERROR_NO_SUCH_TOPIC) {
             System.out.println("Error, topic " + tr.getTopic() + " does not exist !");
           } else if (tr.getError() == TankClient.ERROR_NO_SUCH_PARTITION) {
-            System.out.println("Error, topic " + tr.getTopic() + " doe not have a partition " + tr.getPartition());
+            System.out.println("Error, topic " + tr.getTopic() + " does not have a partition " + tr.getPartition());
+          } else if (tr.getError() == TankClient.ERROR_INVALID_SEQNUM) {
+            System.out.println("Error, topic " + tr.getTopic() + " : " + tr.getPartition() + " Invalid Sequence Num");
           } else {
-            System.out.println("Unknown error for topic: " + tr.getTopic() + " partition: " + tr.getPartition());
+            System.out.println("System error for topic: " + tr.getTopic() + " partition: " + tr.getPartition());
           }
         }
       }

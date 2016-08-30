@@ -506,13 +506,25 @@ public class TankClient {
     ArrayList<TankResponse> response = new ArrayList<TankResponse>();
     log.fine("Getting response for Request id: " + input.deSerialize(U32));
 
+    long error = 0L;
+    String noTopic = new String();
     for (SimpleEntry<String, Long> tuple : tr.getTopicPartitions()) {
       log.fine("Processing response for " + tuple.getKey() + ":" + tuple.getValue());
+      if (tuple.getKey().equals(noTopic)) {
+        //No such topic. No errors encoded for further partitions
+      } else {
+        error = input.deSerialize(U8);
+      }
+
+      if (error == ERROR_NO_SUCH_TOPIC) {
+        noTopic = tuple.getKey();
+      }
+
       response.add(
           new TankResponse(
               tuple.getKey(),
               tuple.getValue(),
-              input.deSerialize(U8)));
+              error));
     }
     return response;
   }
@@ -627,5 +639,6 @@ public class TankClient {
   public static final byte U64 = 8;
 
   public static final long ERROR_NO_SUCH_TOPIC = 255;
-  public static final long ERROR_NO_SUCH_PARTITION = 2;
+  public static final long ERROR_NO_SUCH_PARTITION = 1;
+  public static final long ERROR_INVALID_SEQNUM = 2;
 }
