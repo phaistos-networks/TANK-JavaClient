@@ -12,6 +12,16 @@ git clone https://github.com/phaistos-networks/TANK-JavaClient.git
 make TankClient
 ```
 
+## Jar ##
+[https://phaistos-networks.github.io/TANK-JavaClient/0.1/tank-0.1.jar](tank-0.1.jar)
+
+## Requirements ##
+ - Java (tested on 8+)
+ - [org.xerial.snappy.Snappy](https://github.com/xerial/snappy-java)
+
+## API ##
+https://phaistos-networks.github.io/TANK-JavaClient/0.1/
+
 ## Usage ##
 ### import ###
 ```java
@@ -37,11 +47,7 @@ tc.publish(pubReq);
 List<TankResponse> response = tc.publish(pubReq);
 for (TankResponse tr : response) {
   if (tr.hasError()) {
-    if (tr.getError() == TankClient.ERROR_NO_SUCH_TOPIC) {
-      System.out.println("Error, topic " + tr.getTopic() + " does not exist !");
-    } else if (tr.getError() == TankClient.ERROR_NO_SUCH_PARTITION) {
-      System.out.println("Error, topic " + tr.getTopic() + " doe not have a partition " + tr.getPartition());
-    }
+      System.out.println("Error, for topic " + tr.getTopic() + ":" + tr.getPartition());
   }
 }
 ```
@@ -85,9 +91,6 @@ while (true) {
 }
 
 ```
-
-## API ##
-https://phaistos-networks.github.io/TANK-JavaClient/
 
 ## License ##
 Apache v2.0

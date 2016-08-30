@@ -30,5 +30,7 @@ client:
 style:
 	java -jar $(CURDIR)/ext/* com.puppycrawl.tools.checkstyle.Main -c $(CURDIR)/ext/google_checks.xml $(SRC)/$(DST)/*.java
 
+jar:
+	jar cvf $(DOC)/tank-0.1.jar gr/
 
 .PHONY: doc
