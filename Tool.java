@@ -91,7 +91,7 @@ class Tool {
             System.out.println("Error, topic " + tr.getTopic() + " does not exist !");
           } else if (tr.getError() == TankClient.ERROR_NO_SUCH_PARTITION) {
             System.out.println(
-                "Error, topic " + tr.getTopic() + " doe not have a partition " + tr.getPartition());
+                "Error, topic " + tr.getTopic() + " does not have a partition " + tr.getPartition());
           } else {
             System.out.println(
                 "Unknown error for topic: " + tr.getTopic() + " partition: " + tr.getPartition());
@@ -110,7 +110,7 @@ class Tool {
         response = tc.consume(consume);
         consume = new TankRequest(TankClient.CONSUME_REQ);
         for (TankResponse tr : response) {
-          System.out.println("topic: " + tr.getTopic() + " partition: " + tr.getPartition());
+          //System.out.println("topic: " + tr.getTopic() + " partition: " + tr.getPartition());
           for (TankMessage tm : tr.getMessages()) {
             System.out.println("seq: " + tm.getSeqId()
                 + " ts: " + tm.getTimestamp()

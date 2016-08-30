@@ -1,6 +1,7 @@
 package gr.phaistosnetworks.tank;
 
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Response data per partition / topic combo.
@@ -26,7 +27,7 @@ public class TankResponse {
   /**
    * Returns the messages.
    */
-  public ArrayList<TankMessage> getMessages() {
+  public List<TankMessage> getMessages() {
     return messages;
   }
 
@@ -99,7 +100,7 @@ public class TankResponse {
     }
   }
 
-  private ArrayList<TankMessage> messages;
+  private List<TankMessage> messages;
   private String topic;
   private long partition = 0L;
   private boolean hasError = false;
