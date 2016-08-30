@@ -315,11 +315,14 @@ public class TankClient {
    * @param topics the request topics. Used to crosscheck between request and response.
    * @param chunkList the chunkList as read from headers.
    */
-  private List<TankResponse> processChunks(long requestId, ByteManipulator input, TankRequest request, ArrayList<Chunk> chunkList) {
-    //Chunks
+  private List<TankResponse> processChunks(
+      long requestId,
+      ByteManipulator input,
+      TankRequest request,
+      ArrayList<Chunk> chunkList) {
+
     ArrayList<TankResponse> response = new ArrayList<TankResponse>();
     for (Chunk c : chunkList) {
-      long curSeqNum = 0;
       long bundleLength = 0;
       long minSeqNum = 0L;
       TankResponse topicPartition = new TankResponse(c.topic, c.partition, c.errorOrFlags);
@@ -393,9 +396,7 @@ public class TankClient {
 
       long timestamp = 0L;
       long prevSeqNum = firstMessageNum;
-      if (curSeqNum == 0) {
-        curSeqNum = firstMessageNum;
-      }
+      long curSeqNum = firstMessageNum;
 
       for (int i = 0; i < messageCount; i++) {
         log.finer("#### Message " + (i + 1) + " out of " + messageCount);
@@ -502,10 +503,11 @@ public class TankClient {
    * @param input a ByteManipulator object containing the data received from server.
    */
   private List<TankResponse> getPubResponse(ByteManipulator input, TankRequest tr) {
-    ArrayList<TankResponse> response = new ArrayList<TankResponse>();//(input.deSerialize(U32));
+    ArrayList<TankResponse> response = new ArrayList<TankResponse>();
     log.fine("Getting response for Request id: " + input.deSerialize(U32));
 
     for (SimpleEntry<String, Long> tuple : tr.getTopicPartitions()) {
+      log.fine("Processing response for " + tuple.getKey() + ":" + tuple.getValue());
       response.add(
           new TankResponse(
               tuple.getKey(),
@@ -624,6 +626,6 @@ public class TankClient {
   public static final byte U32 = 4;
   public static final byte U64 = 8;
 
-  public static final long ERROR_NO_SUCH_TOPIC = 1;
+  public static final long ERROR_NO_SUCH_TOPIC = 255;
   public static final long ERROR_NO_SUCH_PARTITION = 2;
 }

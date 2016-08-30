@@ -124,8 +124,14 @@ public class TankRequest {
 
       for (long partition : partitionRequest.keySet()) {
         baos.write(ByteManipulator.serialize(partition, TankClient.U16));
-        baos.write(ByteManipulator.serialize(partitionRequest.get(partition).getKey(), TankClient.U64));
-        baos.write(ByteManipulator.serialize(partitionRequest.get(partition).getValue(), TankClient.U32));
+
+        baos.write(ByteManipulator.serialize(
+            partitionRequest.get(partition).getKey(), 
+            TankClient.U64));
+
+        baos.write(ByteManipulator.serialize(
+            partitionRequest.get(partition).getValue(), 
+            TankClient.U32));
       }
     }
     return baos.toByteArray();
@@ -151,6 +157,7 @@ public class TankRequest {
         baos.write(ByteManipulator.getVarInt(bb.length));
         baos.write(bb);
 
+        log.fine("Adding to request: " + topic + ":" + partition);
         publishRequestTopics.add(new SimpleEntry<String, Long>(topic, partition));
       }
     }

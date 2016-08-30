@@ -84,10 +84,11 @@ class TestApp {
     publish.publishMessage("bar", 0, new TankMessage("hello world".getBytes()));
     publish.publishMessage("randomness", 0, new TankMessage("This should fail too".getBytes()));
 
-    if (false) {
+    if (true) {
       responses = tc.publish(publish);
       for (TankResponse tr : responses) {
         if (tr.hasError()) {
+          System.out.format("Error: %d \n", tr.getError());
           if (tr.getError() == TankClient.ERROR_NO_SUCH_TOPIC) {
             System.out.println("Error, topic " + tr.getTopic() + " does not exist !");
           } else if (tr.getError() == TankClient.ERROR_NO_SUCH_PARTITION) {
@@ -100,33 +101,35 @@ class TestApp {
     }
 
 
-    TankRequest consume = new TankRequest(TankClient.CONSUME_REQ);
-    consume.consumeTopicPartition("foo", 0, 0, fetchSize);
-    //consume.consumeTopicPartition("foo", 1, 0, fetchSize);
-    consume.consumeTopicPartition("bar", 0, 0, fetchSize);
-    //consume.consumeTopicPartition("randomness", 0, 0, fetchSize);
+    if (false) {
+      TankRequest consume = new TankRequest(TankClient.CONSUME_REQ);
+      consume.consumeTopicPartition("foo", 0, 0, fetchSize);
+      consume.consumeTopicPartition("foo", 1, 0, fetchSize);
+      consume.consumeTopicPartition("bar", 0, 0, fetchSize);
+      consume.consumeTopicPartition("randomness", 0, 0, fetchSize);
 
-    while (true) {
-      responses = tc.consume(consume);
-      consume = new TankRequest(TankClient.CONSUME_REQ);
-      for (TankResponse tr : responses) {
-        System.out.println("topic: " + tr.getTopic() + " partition: " + tr.getPartition());
-        for (TankMessage tm : tr.getMessages()) {
-          System.out.println("seq: " + tm.getSeqId()
-              + " ts: " + tm.getTimestamp()
-              + " key: " + new String(tm.getKey())
-              + " message: " + new String(tm.getMessage()));
+      while (true) {
+        responses = tc.consume(consume);
+        consume = new TankRequest(TankClient.CONSUME_REQ);
+        for (TankResponse tr : responses) {
+          System.out.println("topic: " + tr.getTopic() + " partition: " + tr.getPartition());
+          for (TankMessage tm : tr.getMessages()) {
+            System.out.println("seq: " + tm.getSeqId()
+                + " ts: " + tm.getTimestamp()
+                + " key: " + new String(tm.getKey())
+                + " message: " + new String(tm.getMessage()));
+          }
+          if (tr.getFetchSize() > fetchSize) {
+            fetchSize = tr.getFetchSize();
+          }
+          consume.consumeTopicPartition(
+              tr.getTopic(),
+              tr.getPartition(),
+              tr.getNextSeqId(),
+              fetchSize
+              );
+          System.out.println("Next: " + tr.getTopic() + ":" + tr.getPartition() + " @" + tr.getNextSeqId() + " #"+tr.getFetchSize());
         }
-        if (tr.getFetchSize() > fetchSize) {
-          fetchSize = tr.getFetchSize();
-        }
-        consume.consumeTopicPartition(
-            tr.getTopic(),
-            tr.getPartition(),
-            tr.getNextSeqId(),
-            fetchSize
-            );
-        System.out.println("Next: " + tr.getTopic() + ":" + tr.getPartition() + " @" + tr.getNextSeqId() + " #"+tr.getFetchSize());
       }
     }
   }
