@@ -1,0 +1,16 @@
+body {
+  background-color: #FAFAFA;
+  color: #2D3E50;
+  font-family: "Consolas", "Lucida Console", Monaco, monospace;
+  font-size: 16px;
+  padding: 40px;
+}
+
+
+ul {
+  list-style-type: none;
+}
+
+li {
+  padding: 10px;
+}
