@@ -90,9 +90,11 @@ class Tool {
           if (tr.getError() == TankClient.ERROR_NO_SUCH_TOPIC) {
             System.out.println("Error, topic " + tr.getTopic() + " does not exist !");
           } else if (tr.getError() == TankClient.ERROR_NO_SUCH_PARTITION) {
-            System.out.println("Error, topic " + tr.getTopic() + " doe not have a partition " + tr.getPartition());
+            System.out.println(
+                "Error, topic " + tr.getTopic() + " doe not have a partition " + tr.getPartition());
           } else {
-            System.out.println("Unknown error for topic: " + tr.getTopic() + " partition: " + tr.getPartition());
+            System.out.println(
+                "Unknown error for topic: " + tr.getTopic() + " partition: " + tr.getPartition());
           }
         }
       }
@@ -128,5 +130,6 @@ class Tool {
       }
     }
   }
+
   private static long fetchSize = 20000L;
 }
