@@ -2,7 +2,8 @@ JAVAC= /usr/bin/javac
 JAVADOC= /usr/bin/javadoc
 CURDIR= $(shell pwd)
 SRC= $(CURDIR)/src
-DOC= $(CURDIR)/doc/0.1
+VER= 0.1.0
+DOC= $(CURDIR)/doc/$(VER)
 DST= gr/phaistosnetworks/tank
 PACKAGE= gr.phaistosnetworks.tank
 CPATH= $(CURDIR):$(CURDIR)/ext/*
@@ -31,6 +32,6 @@ style:
 	java -jar $(CURDIR)/ext/* com.puppycrawl.tools.checkstyle.Main -c $(CURDIR)/ext/google_checks.xml $(SRC)/$(DST)/*.java
 
 jar:
-	jar cvf $(DOC)/tank-0.1.jar gr/
+	jar cvf $(DOC)/tank-$(VER).jar gr/
 
 .PHONY: doc

@@ -13,14 +13,14 @@ make TankClient
 ```
 
 ## Jar ##
-[https://phaistos-networks.github.io/TANK-JavaClient/0.1/tank-0.1.jar](tank-0.1.jar)
+[https://phaistos-networks.github.io/TANK-JavaClient/0.1.0/tank-0.1.0.jar](tank-0.1.0.jar)
 
 ## Requirements ##
  - Java (tested on 8+)
  - [org.xerial.snappy.Snappy](https://github.com/xerial/snappy-java)
 
 ## API ##
-https://phaistos-networks.github.io/TANK-JavaClient/0.1/
+https://phaistos-networks.github.io/TANK-JavaClient/0.1.0/
 
 ## Usage ##
 ### import ###
