@@ -163,7 +163,7 @@ public class TankClient {
       }
 
       if (payloadSize > input.getRemainingLength()) {
-        log.info("Received packet incomplete ");
+        log.finer("Received packet incomplete ");
         remainder = (int)(payloadSize - input.getRemainingLength());
         input.resetOffset();
         continue;
@@ -248,6 +248,7 @@ public class TankClient {
    */
   private List<TankResponse> processConsumeResponse(ByteManipulator input, TankRequest request) {
     ArrayList<Chunk> chunkList = new ArrayList<Chunk>();
+    ArrayList<TankResponse> response = new ArrayList<TankResponse>();
     // Headers
     long headerSize  = input.deSerialize(U32);
     long requestId = input.deSerialize(U32);
@@ -298,6 +299,9 @@ public class TankClient {
             log.warning(
                 "Sequence out of bounds. Range: " 
                 + firstAvailSeqNum + " - " + highWaterMark);
+            TankResponse blankResponse = new TankResponse(topic, partition, errorOrFlags);
+            blankResponse.setRequestSeqId(firstAvailSeqNum);
+            response.add(blankResponse);
             continue;
           }
           chunkList.add(
@@ -305,7 +309,7 @@ public class TankClient {
         }
       }
     }
-    return processChunks(requestId, input, request, chunkList);
+    return processChunks(requestId, input, request, chunkList, response);
   }
 
   /**
@@ -319,9 +323,9 @@ public class TankClient {
       long requestId,
       ByteManipulator input,
       TankRequest request,
-      ArrayList<Chunk> chunkList) {
+      ArrayList<Chunk> chunkList,
+      ArrayList<TankResponse> response) {
 
-    ArrayList<TankResponse> response = new ArrayList<TankResponse>();
     for (Chunk c : chunkList) {
       long bundleLength = 0;
       long minSeqNum = 0L;

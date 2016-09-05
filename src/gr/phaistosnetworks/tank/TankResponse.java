@@ -80,7 +80,8 @@ public class TankResponse {
   }
 
   /**
-   * Not used.
+   * Sets the SeqId.
+   * Used when requesting seqId out of range.
    */
   void setRequestSeqId(long seqId) {
     this.requestSeqId = seqId;
