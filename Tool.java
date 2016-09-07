@@ -60,6 +60,10 @@ class Tool {
             System.out.println("I have a baad feeling about this. Commencing from sequence 0");
           }
           break;
+        case "-tail":
+          consumate = true;
+          id = TankClient.U64_MAX;
+          break;
         case "-k":
         case "-key":
           key = args[++i];

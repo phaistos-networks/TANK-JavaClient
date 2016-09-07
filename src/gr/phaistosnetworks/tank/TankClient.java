@@ -296,11 +296,18 @@ public class TankClient {
 
           if (errorOrFlags == 0x1) {
             long firstAvailSeqNum = input.deSerialize(U64);
+            long requestedSeqNum = request.getSequenceId(topic, p);
             log.warning(
-                "Sequence out of bounds. Range: " 
+                "Sequence "
+                + requestedSeqNum
+                + " out of bounds. Range: "
                 + firstAvailSeqNum + " - " + highWaterMark);
             TankResponse blankResponse = new TankResponse(topic, partition, errorOrFlags);
-            blankResponse.setRequestSeqId(firstAvailSeqNum);
+            if (requestedSeqNum < firstAvailSeqNum) {
+              blankResponse.setRequestSeqId(firstAvailSeqNum);
+            } else {
+              blankResponse.setRequestSeqId(highWaterMark);
+            }
             response.add(blankResponse);
             continue;
           }
@@ -624,6 +631,7 @@ public class TankClient {
   private byte [] clientId;
 
   private static final long FETCH_SIZE_LEEWAY = 10000L;
+  public static final long U64_MAX = -1L;
   public static final int U16_MAX = 65535;
   public static final int U8_MAX = 255;
   public static final int U4_MAX = 15;
@@ -645,4 +653,5 @@ public class TankClient {
   public static final long ERROR_NO_SUCH_TOPIC = 255;
   public static final long ERROR_NO_SUCH_PARTITION = 1;
   public static final long ERROR_INVALID_SEQNUM = 2;
+
 }
