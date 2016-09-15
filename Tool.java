@@ -110,6 +110,7 @@ class Tool {
     List<TankResponse> response;
 
     if (consumate) {
+      long nextSeqNum = 0L;
       while (true) {
         response = tc.consume(consume);
         consume = new TankRequest(TankClient.CONSUME_REQ);
@@ -135,7 +136,6 @@ class Tool {
           } else {
             nextSeqNum = tr.getNextSeqNum();
           }
-
 
           consume.consumeTopicPartition(
               tr.getTopic(),

@@ -63,7 +63,7 @@ for (TankResponse tr : responses) {
   System.out.println("topic: " + tr.getTopic() + " partition: " + tr.getPartition());
   for (TankMessage tm : tr.getMessages()) {
     System.out.println(
-        "seq: " + tm.getSeqId()
+        "seq: " + tm.getSeqNum()
         + " ts: " + tm.getTimestamp()
         + (tm.haveKey()) ? " key: " + new String(tm.getKey()) : ""
         + " message: " + new String(tm.getMessage()));
@@ -73,19 +73,32 @@ for (TankResponse tr : responses) {
 
 ### Consume Next ###
 ```java
+long nextSeqNum = 0L;
 while (true) {
   responses = tc.consume(consume);
   consume = new TankRequest(TankClient.CONSUME_REQ);
   for (TankResponse tr : responses) {
 
+    // Detect if fetchSize is too small, and increase it
     if (tr.getFetchSize() > fetchSize) {
       fetchSize = tr.getFetchSize();
     }
 
+
+    // Detect if requested Seq Num is out of bounds and handle it
+    if (tr.hasError() && tr.getError() == TankClient.ERROR_OUT_OF_BOUNDS) {
+      if (tr.getRequestSeqNum() < tr.getFirstAvailSeqNum()) {
+        nextSeqNum = tr.getFirstAvailSeqNum();
+      } else if (tr.getRequestSeqNum() > tr.getHighWaterMark()) {
+        nextSeqNum = tr.getHighWaterMark();
+      }
+    } else {
+      nextSeqNum = tr.getNextSeqNum();
+    }
     consume.consumeTopicPartition(
         tr.getTopic(),
         tr.getPartition(),
-        tr.getNextSeqId(),
+        nextSeqNum,
         fetchSize);
   }
 }
