@@ -55,6 +55,16 @@ public class ByteManipulator {
   }
 
   /**
+   * Compress data using the snappy library.
+   *
+   * @param data the data to compress
+   * @return the compressed data.
+   */
+  public static byte[] snappyCompress(byte [] data) throws IOException {
+    return Snappy.compress(data);
+  }
+
+  /**
    * Uncompress the next length bytes using the snappy library.
    *
    * @param length the amount of bytes to uncompress

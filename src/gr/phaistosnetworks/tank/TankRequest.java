@@ -230,15 +230,29 @@ public class TankRequest {
           flags |= (messages.size() << 2);
         }
 
+        ByteArrayOutputStream allMessages = new ByteArrayOutputStream();
+        byte [] messageData = new byte[0] ;
+        for (TankMessage tm : messages) {
+          allMessages.write(tm.serialize(false));
+        }
+
+        if (allMessages.size() > TankClient.COMPRESS_MIN_SIZE) {
+          log.fine("allMessage size is " + allMessages.size() + " -> snappy compressing");
+          messageData = ByteManipulator.snappyCompress(allMessages.toByteArray());
+          // Set compressed flag
+          flags |= 1;
+        } else {
+          messageData = allMessages.toByteArray();
+        }
+
         baos.write(ByteManipulator.serialize(flags, TankClient.U8));
 
         if (messages.size() > TankClient.U4_MAX) {
           baos.write(ByteManipulator.getVarInt(messages.size()));
         }
 
-        for (TankMessage tm : messages) {
-          baos.write(tm.serialize(false));
-        }
+        baos.write(messageData);
+
       } catch (IOException | TankException ioe) {
         log.log(Level.SEVERE, "ERROR serializing request bundle", ioe);
         System.exit(1);

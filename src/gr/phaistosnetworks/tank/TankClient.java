@@ -636,7 +636,6 @@ public class TankClient {
   private long minBytes = 0L;
   private byte [] clientId;
 
-  private static final long FETCH_SIZE_LEEWAY = 10000L;
   public static final long U64_MAX = -1L;
   public static final int U16_MAX = 65535;
   public static final int U8_MAX = 255;
@@ -660,5 +659,7 @@ public class TankClient {
   public static final long ERROR_NO_SUCH_PARTITION = 1;
   public static final long ERROR_INVALID_SEQNUM = 2;
   public static final long ERROR_OUT_OF_BOUNDS = 1;
+
+  public static final long COMPRESS_MIN_SIZE = 1024;
 
 }
