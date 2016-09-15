@@ -110,36 +110,51 @@ class TestApp {
     }
 
 
-    if (false) {
+    if (true) {
       TankRequest consume = new TankRequest(TankClient.CONSUME_REQ);
       consume.consumeTopicPartition("foo", 0, 0, fetchSize);
       consume.consumeTopicPartition("foo", 1, 0, fetchSize);
       consume.consumeTopicPartition("bar", 0, 0, fetchSize);
       consume.consumeTopicPartition("randomness", 0, 0, fetchSize);
+      consume.consumeTopicPartition("foo", 0, 99999, fetchSize);
 
+      long nextSeqNum = 0L;
       while (true) {
         responses = tc.consume(consume);
         consume = new TankRequest(TankClient.CONSUME_REQ);
         for (TankResponse tr : responses) {
           System.out.println("topic: " + tr.getTopic() + " partition: " + tr.getPartition());
+
+          if (tr.getFetchSize() > fetchSize) {
+            fetchSize = tr.getFetchSize();
+          }
+
+          if (tr.hasError() && tr.getError() == TankClient.ERROR_OUT_OF_BOUNDS) {
+            if (tr.getRequestSeqNum() < tr.getFirstAvailSeqNum()) {
+              nextSeqNum = tr.getFirstAvailSeqNum();
+            } else if (tr.getRequestSeqNum() > tr.getHighWaterMark()) {
+              nextSeqNum = tr.getHighWaterMark();
+            }
+          } else {
+            nextSeqNum = tr.getNextSeqNum();
+          }
+
           for (TankMessage tm : tr.getMessages()) {
-            System.out.println("seq: " + tm.getSeqId()
+            System.out.println("seq: " + tm.getSeqNum()
                 + " ts: " + tm.getTimestamp()
                 + " key: " + new String(tm.getKey())
                 + " message: " + new String(tm.getMessage()));
           }
-          if (tr.getFetchSize() > fetchSize) {
-            fetchSize = tr.getFetchSize();
-          }
+
           consume.consumeTopicPartition(
               tr.getTopic(),
               tr.getPartition(),
-              tr.getNextSeqId(),
+              nextSeqNum,
               fetchSize);
           System.out.println(
               "Next: " + tr.getTopic()
               + ":" + tr.getPartition()
-              + " @" + tr.getNextSeqId()
+              + " @" + nextSeqNum
               + " #" + tr.getFetchSize());
         }
       }

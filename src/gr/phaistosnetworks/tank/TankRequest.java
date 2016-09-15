@@ -36,20 +36,20 @@ public class TankRequest {
   }
 
   /**
-   * Adds a topic, partition, seqeuenceId combo to a CONSUME_REQ.
+   * Adds a topic, partition, seqeuenceNum combo to a CONSUME_REQ.
    *
-   * @param seqId the sequence id to request.
+   * @param seqNum the sequence id to request.
    *
    * @throws TankException if the request type is not CONSUME_REQ
    */
   public void consumeTopicPartition(
       String topicName,
       long partition,
-      long seqId,
+      long seqNum,
       long fetchSize)
       throws TankException {
 
-    log.fine("Adding request: " + topicName + ":" + partition + " @" + seqId + " #" + fetchSize);
+    log.fine("Adding request: " + topicName + ":" + partition + " @" + seqNum + " #" + fetchSize);
 
     if (requestType != TankClient.CONSUME_REQ) {
       throw new TankException("Can only add consumeTopicPartitions to CONSUME TankRequests");
@@ -57,10 +57,10 @@ public class TankRequest {
     if (consumeRequestTopics.containsKey(topicName)) {
       consumeRequestTopics.get(topicName).put(
           partition, 
-          new SimpleEntry<Long, Long>(seqId, fetchSize));
+          new SimpleEntry<Long, Long>(seqNum, fetchSize));
     } else {
       HashMap<Long, SimpleEntry<Long, Long>> toPut = new HashMap<Long, SimpleEntry<Long, Long>>();
-      toPut.put(partition, new SimpleEntry<Long, Long>(seqId, fetchSize));
+      toPut.put(partition, new SimpleEntry<Long, Long>(seqNum, fetchSize));
       consumeRequestTopics.put(topicName, toPut);
     }
   }
@@ -182,7 +182,7 @@ public class TankRequest {
     }
   }
 
-  long getSequenceId(String topic, long partition) {
+  long getSequenceNum(String topic, long partition) {
     return consumeRequestTopics.get(topic).get(partition).getKey();
   }
 

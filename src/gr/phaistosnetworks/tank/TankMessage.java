@@ -5,15 +5,15 @@ import java.io.IOException;
 
 
 /**
- * A tank message is an object with sequenceId, timestamp and data.
+ * A tank message is an object with sequenceNum, timestamp and data.
  */
 public class TankMessage {
 
   /**
    * Constructor with sequence id, used in consume request.
    */
-  public TankMessage(long sequenceId, long timestamp, byte[] key, byte[] message) {
-    this.seqId = sequenceId;
+  public TankMessage(long sequenceNum, long timestamp, byte[] key, byte[] message) {
+    this.seqNum = sequenceNum;
     this.timestamp = timestamp;
     this.message = message;
     this.key = key;
@@ -80,8 +80,8 @@ public class TankMessage {
   /**
    * Returns the message sequence id.
    */
-  public long getSeqId() {
-    return seqId;
+  public long getSeqNum() {
+    return seqNum;
   }
 
   /**
@@ -113,7 +113,7 @@ public class TankMessage {
   }
 
   private boolean haveKey;
-  private long seqId;
+  private long seqNum;
   private long timestamp;
   private byte[] key;
   private byte[] message;

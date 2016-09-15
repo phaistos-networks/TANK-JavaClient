@@ -80,11 +80,47 @@ public class TankResponse {
   }
 
   /**
-   * Sets the SeqId.
-   * Used when requesting seqId out of range.
+   * Sets the highWaterMark.
    */
-  void setRequestSeqId(long seqId) {
-    this.requestSeqId = seqId;
+  void setHighWaterMark(long highWaterMark) {
+    this.highWaterMark = highWaterMark;
+  }
+
+  /**
+   * Returns the highWaterMark.
+   */
+  public long getHighWaterMark() {
+    return highWaterMark;
+  }
+
+  /**
+   * Sets the firstAvailSeqNum.
+   */
+  void setFirstAvailSeqNum(long firstAvailSeqNum) {
+    this.firstAvailSeqNum = firstAvailSeqNum;
+  }
+
+  /**
+   * Returns the firstAvailSeqNum.
+   * This may be used in the event of an Out of bounds request.
+   */
+  public long getFirstAvailSeqNum() {
+    return firstAvailSeqNum;
+  }
+
+  /**
+   * Sets the requestSeqNum.
+   * Used when requesting seqNum out of range.
+   */
+  void setRequestSeqNum(long seqNum) {
+    this.requestSeqNum = seqNum;
+  }
+
+  /**
+   * Returns the requestSeqNum.
+   */
+  public long getRequestSeqNum() {
+    return requestSeqNum;
   }
 
   /**
@@ -93,11 +129,11 @@ public class TankResponse {
    * This may happen is fetchSize is too small.
    * Else it will return highest messages sequence id + 1
    */
-  public long getNextSeqId() {
+  public long getNextSeqNum() {
     if (messages.size() == 0) {
-      return requestSeqId;
+      return requestSeqNum;
     } else {
-      return (messages.get(messages.size() - 1).getSeqId()) + 1;
+      return (messages.get(messages.size() - 1).getSeqNum()) + 1;
     }
   }
 
@@ -106,6 +142,8 @@ public class TankResponse {
   private long partition = 0L;
   private boolean hasError = false;
   private long error = 0L;
-  private long requestSeqId;
+  private long requestSeqNum;
   private long fetchSize;
+  private long highWaterMark = -1L;
+  private long firstAvailSeqNum = 0L;
 }

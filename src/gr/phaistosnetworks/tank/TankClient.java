@@ -296,18 +296,24 @@ public class TankClient {
 
           if (errorOrFlags == 0x1) {
             long firstAvailSeqNum = input.deSerialize(U64);
-            long requestedSeqNum = request.getSequenceId(topic, p);
+            long requestedSeqNum = request.getSequenceNum(topic, p);
             log.warning(
                 "Sequence "
                 + requestedSeqNum
                 + " out of bounds. Range: "
                 + firstAvailSeqNum + " - " + highWaterMark);
+
             TankResponse blankResponse = new TankResponse(topic, partition, errorOrFlags);
+            blankResponse.setHighWaterMark(highWaterMark);
+            blankResponse.setFirstAvailSeqNum(firstAvailSeqNum);
+            blankResponse.setRequestSeqNum(requestedSeqNum);
+            /*
             if (requestedSeqNum < firstAvailSeqNum) {
-              blankResponse.setRequestSeqId(firstAvailSeqNum);
+              blankResponse.setRequestSeqNum(firstAvailSeqNum);
             } else {
-              blankResponse.setRequestSeqId(highWaterMark);
+              blankResponse.setRequestSeqNum(highWaterMark);
             }
+            */
             response.add(blankResponse);
             continue;
           }
@@ -335,10 +341,10 @@ public class TankClient {
 
     for (Chunk c : chunkList) {
       long bundleLength = 0;
-      long minSeqNum = 0L;
+      long requestedSeqNum = request.getSequenceNum(c.topic, c.partition);
       TankResponse topicPartition = new TankResponse(c.topic, c.partition, c.errorOrFlags);
-      minSeqNum = request.getSequenceId(c.topic, c.partition);
-      topicPartition.setRequestSeqId(minSeqNum);
+
+      topicPartition.setRequestSeqNum(requestedSeqNum);
       if (c.length == 0) {
         response.add(topicPartition);
         continue;
@@ -450,7 +456,7 @@ public class TankClient {
         log.finest(new String(message));
 
         // Don't save the message if it has a sequence number lower than we requested.
-        if (curSeqNum >= minSeqNum) {
+        if (curSeqNum >= requestedSeqNum) {
           topicPartition.addMessage(new TankMessage(curSeqNum, timestamp, key.getBytes(), message));
         }
         curSeqNum++;
@@ -653,5 +659,6 @@ public class TankClient {
   public static final long ERROR_NO_SUCH_TOPIC = 255;
   public static final long ERROR_NO_SUCH_PARTITION = 1;
   public static final long ERROR_INVALID_SEQNUM = 2;
+  public static final long ERROR_OUT_OF_BOUNDS = 1;
 
 }

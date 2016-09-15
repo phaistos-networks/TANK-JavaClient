@@ -116,18 +116,31 @@ class Tool {
         for (TankResponse tr : response) {
           //System.out.println("topic: " + tr.getTopic() + " partition: " + tr.getPartition());
           for (TankMessage tm : tr.getMessages()) {
-            System.out.println("seq: " + tm.getSeqId()
+            System.out.println("seq: " + tm.getSeqNum()
                 + " ts: " + tm.getTimestamp()
                 + " key: " + new String(tm.getKey())
                 + " message: " + new String(tm.getMessage()));
           }
+
           if (tr.getFetchSize() > fetchSize) {
             fetchSize = tr.getFetchSize();
           }
+
+          if (tr.hasError() && tr.getError() == TankClient.ERROR_OUT_OF_BOUNDS) {
+            if (tr.getRequestSeqNum() < tr.getFirstAvailSeqNum()) {
+              nextSeqNum = tr.getFirstAvailSeqNum();
+            } else if (tr.getRequestSeqNum() > tr.getHighWaterMark()) {
+              nextSeqNum = tr.getHighWaterMark();
+            }
+          } else {
+            nextSeqNum = tr.getNextSeqNum();
+          }
+
+
           consume.consumeTopicPartition(
               tr.getTopic(),
               tr.getPartition(),
-              tr.getNextSeqId(),
+              nextSeqNum,
               fetchSize
           );
         }
