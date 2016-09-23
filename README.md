@@ -62,7 +62,7 @@ for (TankResponse tr : responses) {
     System.out.println(
         "seq: " + tm.getSeqNum()
         + " ts: " + tm.getTimestamp()
-        + (tm.haveKey()) ? " key: " + new String(tm.getKey()) : ""
+        + ((tm.haveKey()) ? " key: " + new String(tm.getKey()) : "")
         + " message: " + new String(tm.getMessage()));
   }
 }
@@ -72,8 +72,8 @@ for (TankResponse tr : responses) {
 ```java
 long nextSeqNum = 0L;
 while (true) {
-  responses = tc.consume(consume);
-  consume = new TankRequest(TankClient.CONSUME_REQ);
+  responses = tc.consume(consumeReq);
+  consumeReq = new TankRequest(TankClient.CONSUME_REQ);
   for (TankResponse tr : responses) {
 
     // Detect if fetchSize is too small, and increase it
@@ -92,7 +92,7 @@ while (true) {
     } else {
       nextSeqNum = tr.getNextSeqNum();
     }
-    consume.consumeTopicPartition(
+    consumeReq.consumeTopicPartition(
         tr.getTopic(),
         tr.getPartition(),
         nextSeqNum,
