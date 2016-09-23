@@ -30,14 +30,16 @@ public class TankClient {
   public TankClient(String tankHost, int tankPort) {
     this.tankHost = tankHost;
     this.tankPort = tankPort;
+
+    clientReqId = 0;
+    log = Logger.getLogger("tankClient");
+
     try {
       clientId = ByteManipulator.getStr8("JC01");
     } catch (TankException | UnsupportedEncodingException te) {
       log.severe("Cannot generate default clientID str8. " + te.getMessage());
       System.exit(1);
     }
-    clientReqId = 0;
-    log = Logger.getLogger("tankClient");
 
     try {
       while (true) {
