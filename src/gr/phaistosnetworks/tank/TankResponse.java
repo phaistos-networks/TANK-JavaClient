@@ -137,6 +137,13 @@ public class TankResponse {
     }
   }
 
+  /**
+   * Returns whether there are any messages in the response.
+   */
+  public boolean hasMessages() {
+    return (messages.size() != 0);
+  }
+
   private List<TankMessage> messages;
   private String topic;
   private long partition = 0L;

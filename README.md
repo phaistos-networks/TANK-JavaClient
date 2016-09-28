@@ -3,7 +3,6 @@ Java Client for [TANK](https://github.com/phaistos-networks/TANK).
 
 ## Status ##
 This is a work in progress.  
-Currently only single topic/partition Publish and Consume operations are (mostly) supported.  
 DO NOT USE for anything other than testing, since everything is subject to change.  
 
 ## Get ##
