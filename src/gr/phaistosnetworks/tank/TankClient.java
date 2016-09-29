@@ -367,7 +367,8 @@ public class TankClient {
         log.fine("Bundle length : " + bundleLength);
 
         if (bundleLength > topicPartition.getFetchSize()) {
-          topicPartition.setFetchSize(bundleLength);
+          //Add extra 5 bytes which is max 32bit varint can use up.
+          topicPartition.setFetchSize(bundleLength + 5);
         }
 
         if (bundleLength > input.getRemainingLength()) {
