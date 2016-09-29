@@ -344,6 +344,7 @@ public class TankClient {
     for (Chunk c : chunkList) {
       long bundleLength = 0;
       long requestedSeqNum = request.getSequenceNum(c.topic, c.partition);
+      log.fine("Chunk for " + c.topic + ":" + c.partition + " @" + requestedSeqNum + " with baseSeqNum: " + c.baseAbsSeqNum);
       TankResponse topicPartition = new TankResponse(c.topic, c.partition, c.errorOrFlags);
 
       topicPartition.setRequestSeqNum(requestedSeqNum);
@@ -352,116 +353,126 @@ public class TankClient {
         continue;
       }
 
-      log.finer("Remaining Length: " + input.getRemainingLength());
-      try {
-        bundleLength = input.getVarInt();
-      } catch (ArrayIndexOutOfBoundsException aioobe) {
-        log.info("Bundle length varint incomplete");
-        return response;
-      }
-      log.finer("Bundle length : " + bundleLength);
-
-      if (bundleLength > topicPartition.getFetchSize()) {
-        topicPartition.setFetchSize(bundleLength);
-      }
-
-      if (bundleLength > input.getRemainingLength()) {
-        log.fine("Bundle Incomplete (remaining bytes: " + input.getRemainingLength() + ")");
-        response.add(topicPartition);
-        return response;
-      }
+      long firstMessageNum = c.baseAbsSeqNum;
+      long remainingChunkBytes = c.length;
       input.flushOffset();
-
-      byte flags = (byte)input.deSerialize(U8);
-      // See TANK tank_encoding.md for flags
-      long messageCount = (flags >> 2) & 0xF;
-      long compressed = flags & 0x3;
-      long sparse = (flags >> 6) & 0xF;
-      log.finer("Bundle compressed : " + compressed);
-      log.finer("Bundle SPARSE : " + sparse);
-
-      if (messageCount == 0) {
-        messageCount = input.getVarInt();
-      }
-      log.finer("Messages in set : " + messageCount);
-
-      long firstMessageNum = 0L;
-      long lastMessageNum = 0L;
-      if (sparse == 1) {
-        firstMessageNum = input.deSerialize(U64);
-        log.finer("First message: " + firstMessageNum);
-        if (messageCount > 1) {
-          lastMessageNum = input.getVarInt() + 1 + firstMessageNum;
-          log.finer("Last message: " + lastMessageNum);
-        }
-      } else {
-        firstMessageNum = c.baseAbsSeqNum;
-      }
-
-      ByteManipulator chunkMsgs;
-      if (compressed == 1) {
-        log.finer("Snappy uncompression");
+      while (remainingChunkBytes > 0) {
+        log.fine("Remaining Length: " + input.getRemainingLength());
         try {
-          chunkMsgs = new ByteManipulator(
-              input.snappyUncompress(
-                  bundleLength - input.getOffset()));
-        } catch (IOException ioe) {
-          log.log(Level.SEVERE, "ERROR uncompressing", ioe);
-          return response;
+          bundleLength = input.getVarInt();
+        } catch (ArrayIndexOutOfBoundsException aioobe) {
+          log.info("Bundle length varint incomplete");
+          break;
         }
-      } else {
-        chunkMsgs = input;
-      }
+        log.fine("Bundle length : " + bundleLength);
 
-      long timestamp = 0L;
-      long prevSeqNum = firstMessageNum;
-      long curSeqNum = firstMessageNum;
-
-      for (int i = 0; i < messageCount; i++) {
-        log.finer("#### Message " + (i + 1) + " out of " + messageCount);
-        flags = (byte)chunkMsgs.deSerialize(U8);
-        log.finer(String.format("flags : %d", flags));
-
-        if (sparse == 1) {
-          if (i == 0) {
-            //do nothing. curSeqNum is already set.
-          } else if ((flags & SEQ_NUM_PREV_PLUS_ONE) != 0) {
-            log.fine("SEQ_NUM_PREV_PLUS_ONE");
-            curSeqNum = prevSeqNum + 1;
-          } else if (i != (messageCount - 1)) {
-            curSeqNum = (chunkMsgs.getVarInt() + 1 + prevSeqNum);
-          } else {
-            curSeqNum = lastMessageNum;
-          }
-          log.finer("sparse msg: " + i + " seq num: " + curSeqNum);
-          prevSeqNum = curSeqNum;
+        if (bundleLength > topicPartition.getFetchSize()) {
+          topicPartition.setFetchSize(bundleLength);
         }
-        log.finer("cur seq num: " + curSeqNum);
 
-        if ((flags & USE_LAST_SPECIFIED_TS) == 0) {
-          timestamp = chunkMsgs.deSerialize(U64);
-          log.finer("New Timestamp : " + timestamp);
+        if (bundleLength > input.getRemainingLength()) {
+          log.fine("Bundle Incomplete (remaining bytes: " + input.getRemainingLength() + ")");
+          break;
+        }
+
+        if (bundleLength > remainingChunkBytes) {
+          log.fine("Bundle Incomplete (remaining chunk bytes: " + remainingChunkBytes + ")");
         } else {
-          log.finer("Using last Timestamp : " + timestamp);
+          remainingChunkBytes -= bundleLength;
         }
 
-        String key = new String();
-        if ((flags & HAVE_KEY) != 0) {
-          key = chunkMsgs.getStr8();
-          log.finer("We have a key and it is : " + key);
+        remainingChunkBytes -= input.getOffset();
+        input.flushOffset();
+
+        byte flags = (byte)input.deSerialize(U8);
+        // See TANK tank_encoding.md for flags
+        long messageCount = (flags >> 2) & 0xF;
+        long compressed = flags & 0x3;
+        long sparse = (flags >> 6) & 0xF;
+        log.finer("Bundle compressed : " + compressed);
+        log.finer("Bundle SPARSE : " + sparse);
+
+        if (messageCount == 0) {
+          messageCount = input.getVarInt();
+        }
+        log.finer("Messages in set : " + messageCount);
+
+        long lastMessageNum = 0L;
+        if (sparse == 1) {
+          firstMessageNum = input.deSerialize(U64);
+          log.finer("First message: " + firstMessageNum);
+          if (messageCount > 1) {
+            lastMessageNum = input.getVarInt() + 1 + firstMessageNum;
+            log.finer("Last message: " + lastMessageNum);
+          }
         }
 
-        long contentLength = chunkMsgs.getVarInt();
-        log.finer("Content Length: " + contentLength);
-
-        byte [] message = chunkMsgs.getNextBytes((int)contentLength);
-        log.finest(new String(message));
-
-        // Don't save the message if it has a sequence number lower than we requested.
-        if (curSeqNum >= requestedSeqNum) {
-          topicPartition.addMessage(new TankMessage(curSeqNum, timestamp, key.getBytes(), message));
+        ByteManipulator chunkMsgs;
+        if (compressed == 1) {
+          log.finer("Snappy uncompression");
+          try {
+            chunkMsgs = new ByteManipulator(
+                input.snappyUncompress(
+                    bundleLength - input.getOffset()));
+          } catch (IOException ioe) {
+            log.log(Level.SEVERE, "ERROR uncompressing", ioe);
+            return response;
+          }
+        } else {
+          chunkMsgs = input;
         }
-        curSeqNum++;
+
+        long timestamp = 0L;
+        long prevSeqNum = firstMessageNum;
+        long curSeqNum = firstMessageNum;
+
+        for (int i = 0; i < messageCount; i++) {
+          log.finer("#### Message " + (i + 1) + " out of " + messageCount);
+          flags = (byte)chunkMsgs.deSerialize(U8);
+          log.finer(String.format("flags : %d", flags));
+
+          if (sparse == 1) {
+            if (i == 0) {
+              //do nothing. curSeqNum is already set.
+            } else if ((flags & SEQ_NUM_PREV_PLUS_ONE) != 0) {
+              log.fine("SEQ_NUM_PREV_PLUS_ONE");
+              curSeqNum = prevSeqNum + 1;
+            } else if (i != (messageCount - 1)) {
+              curSeqNum = (chunkMsgs.getVarInt() + 1 + prevSeqNum);
+            } else {
+              curSeqNum = lastMessageNum;
+            }
+            log.finer("sparse msg: " + i + " seq num: " + curSeqNum);
+            prevSeqNum = curSeqNum;
+          }
+          log.finer("cur seq num: " + curSeqNum);
+
+          if ((flags & USE_LAST_SPECIFIED_TS) == 0) {
+            timestamp = chunkMsgs.deSerialize(U64);
+            log.finer("New Timestamp : " + timestamp);
+          } else {
+            log.finer("Using last Timestamp : " + timestamp);
+          }
+
+          String key = new String();
+          if ((flags & HAVE_KEY) != 0) {
+            key = chunkMsgs.getStr8();
+            log.finer("We have a key and it is : " + key);
+          }
+
+          long contentLength = chunkMsgs.getVarInt();
+          log.finer("Content Length: " + contentLength);
+
+          byte [] message = chunkMsgs.getNextBytes((int)contentLength);
+          log.finest(new String(message));
+
+          // Don't save the message if it has a sequence number lower than we requested.
+          if (curSeqNum >= requestedSeqNum) {
+            topicPartition.addMessage(new TankMessage(curSeqNum, timestamp, key.getBytes(), message));
+          }
+          curSeqNum++;
+          firstMessageNum++;
+        }
       }
       response.add(topicPartition);
     }
