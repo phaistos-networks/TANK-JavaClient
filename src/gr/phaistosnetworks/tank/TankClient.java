@@ -344,7 +344,9 @@ public class TankClient {
     for (Chunk c : chunkList) {
       long bundleLength = 0;
       long requestedSeqNum = request.getSequenceNum(c.topic, c.partition);
-      log.fine("Chunk for " + c.topic + ":" + c.partition + " @" + requestedSeqNum + " with baseSeqNum: " + c.baseAbsSeqNum);
+      log.fine("Chunk for " + c.topic + ":" + c.partition
+          + " @" + requestedSeqNum
+          + " with baseSeqNum: " + c.baseAbsSeqNum);
       TankResponse topicPartition = new TankResponse(c.topic, c.partition, c.errorOrFlags);
 
       topicPartition.setRequestSeqNum(requestedSeqNum);
@@ -469,7 +471,8 @@ public class TankClient {
 
           // Don't save the message if it has a sequence number lower than we requested.
           if (curSeqNum >= requestedSeqNum) {
-            topicPartition.addMessage(new TankMessage(curSeqNum, timestamp, key.getBytes(), message));
+            topicPartition.addMessage(new TankMessage(
+                curSeqNum, timestamp, key.getBytes(), message));
           }
           curSeqNum++;
           firstMessageNum++;
