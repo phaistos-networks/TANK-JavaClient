@@ -123,7 +123,7 @@ class TestApp {
     publish.publishMessage("foo", 1, new TankMessage("Μία μακρουλή γραμμή για να περάσουμε το όριο των 1024 μπάιτς στο πιτς φιτιλι 8".getBytes()));
     publish.publishMessage("foo", 1, new TankMessage("Μία μακρουλή γραμμή για να περάσουμε το όριο των 1024 μπάιτς στο πιτς φιτιλι 9".getBytes()));
 
-    if (true) {
+    if (false) {
       responses = tc.publish(publish);
       for (TankResponse tr : responses) {
         if (tr.hasError()) {
@@ -148,20 +148,26 @@ class TestApp {
     }
 
 
-    if (false) {
+    if (true) {
       TankRequest consume = new TankRequest(TankClient.CONSUME_REQ);
       consume.consumeTopicPartition("foo", 0, 0, fetchSize);
       consume.consumeTopicPartition("foo", 1, 0, fetchSize);
       consume.consumeTopicPartition("bar", 0, 0, fetchSize);
+      /*
       consume.consumeTopicPartition("randomness", 0, 0, fetchSize);
       consume.consumeTopicPartition("foo", 0, 99999, fetchSize);
+      */
 
       long nextSeqNum = 0L;
       while (true) {
         responses = tc.consume(consume);
         consume = new TankRequest(TankClient.CONSUME_REQ);
         for (TankResponse tr : responses) {
-          System.out.println("topic: " + tr.getTopic() + " partition: " + tr.getPartition());
+          System.out.println("topic: " + tr.getTopic()
+              + " partition: " + tr.getPartition()
+              + " nextSeqNum: " + tr.getNextSeqNum()
+              + " firstAvailSeqNum: " + tr.getFirstAvailSeqNum()
+              + " highWaterMark: " + tr.getHighWaterMark());
 
           if (tr.getFetchSize() > fetchSize) {
             fetchSize = tr.getFetchSize();
@@ -195,6 +201,7 @@ class TestApp {
               + " @" + nextSeqNum
               + " #" + tr.getFetchSize());
         }
+        Thread.sleep(1000);
       }
     }
   }
