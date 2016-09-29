@@ -55,6 +55,7 @@ public class TankClient {
         client.setTcpNoDelay(true);
         client.setKeepAlive(true);
         client.setReuseAddress(true);
+        client.setReceiveBufferSize(1048576);
         log.config("Connected to " + client.getRemoteSocketAddress());
         log.config(" + recv buffer size: " + client.getReceiveBufferSize());
         log.config(" + send buffer size: " + client.getSendBufferSize());
@@ -128,13 +129,7 @@ public class TankClient {
       }
       log.finest("bytes available: " + av);
       if (av == 0) {
-        try {
-          Thread.sleep(TankClient.RETRY_INTERVAL);
-        } catch (InterruptedException ie) {
-          log.warning("Cmon, lemme get some sleep ! " + ie.getCause());
-        } finally {
-          continue;
-        }
+        continue;
       }
 
       if (remainder >= 0) {
@@ -661,7 +656,7 @@ public class TankClient {
   public static final byte HAVE_KEY = 1;
   public static final byte USE_LAST_SPECIFIED_TS = 2;
   public static final byte SEQ_NUM_PREV_PLUS_ONE = 4;
-  private static final long RETRY_INTERVAL = 50;
+  private static final long RETRY_INTERVAL = 10;
 
   public static final short PUBLISH_REQ = 1;
   public static final short CONSUME_REQ = 2;
