@@ -118,7 +118,7 @@ class Tool {
           //System.out.println("topic: " + tr.getTopic() + " partition: " + tr.getPartition());
           for (TankMessage tm : tr.getMessages()) {
             System.out.println("seq: " + tm.getSeqNum()
-                + " ts: " + tm.getTimestamp()
+                + " date: " + convertTS(tm.getTimestamp())
                 + " key: " + new String(tm.getKey())
                 + " message: " + new String(tm.getMessage()));
           }
@@ -146,6 +146,10 @@ class Tool {
         }
       }
     }
+  }
+
+  private static String convertTS(long ts) {
+    return new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(ts);
   }
 
   private static long fetchSize = 20000L;
