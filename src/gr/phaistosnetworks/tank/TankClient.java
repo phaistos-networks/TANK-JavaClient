@@ -358,7 +358,7 @@ public class TankClient {
         try {
           bundleLength = input.getVarInt();
         } catch (ArrayIndexOutOfBoundsException aioobe) {
-          log.info("Bundle length varint incomplete");
+          log.fine("Bundle length varint incomplete");
           break;
         }
         log.fine("Bundle length : " + bundleLength);
