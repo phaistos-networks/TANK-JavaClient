@@ -5,6 +5,7 @@ import gr.phaistosnetworks.tank.TankMessage;
 import gr.phaistosnetworks.tank.TankRequest;
 import gr.phaistosnetworks.tank.TankResponse;
 
+import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.util.List;
 
@@ -77,8 +78,8 @@ class Tool {
                 topic,
                 partition,
                 new TankMessage(
-                    key.getBytes(),
-                    args[i].getBytes(Charset.forName("UTF-8"))));
+                    ByteBuffer.wrap(key.getBytes()),
+                    ByteBuffer.wrap(args[i].getBytes(Charset.forName("UTF-8")))));
           }
           break;
         default:
@@ -119,8 +120,8 @@ class Tool {
           for (TankMessage tm : tr.getMessages()) {
             System.out.println("seq: " + tm.getSeqNum()
                 + " date: " + convertTs(tm.getTimestamp())
-                + " key: " + new String(tm.getKey())
-                + " message: " + new String(tm.getMessage()));
+                + " key: " + tm.getKey().array().toString()
+                + " message: " + tm.getMessage().array().toString());
           }
 
           if (tr.getFetchSize() > fetchSize) {
