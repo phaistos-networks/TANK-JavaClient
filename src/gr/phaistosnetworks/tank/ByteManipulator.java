@@ -57,9 +57,11 @@ public class ByteManipulator {
    * @param length the amount of bytes to return
    * @return a byte array containing the requested length of bytes
    */
-  public byte[] getNextBytes(int length) {
-    byte [] nextBytes = new byte[length];
-    input.get(nextBytes, 0, length);
+  public ByteBuffer getNextBytes(int length) {
+    ByteBuffer nextBytes = ByteBuffer.allocate(length);
+    for (int i = 0; i < length ; i++) {
+      nextBytes.put(input.get());
+    }
     return nextBytes;
   }
 
