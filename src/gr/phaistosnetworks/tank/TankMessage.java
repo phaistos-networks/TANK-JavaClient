@@ -3,6 +3,8 @@ package gr.phaistosnetworks.tank;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
+import java.nio.ByteBuffer;
+
 
 /**
  * A tank message is an object with sequenceNum, timestamp and data.
@@ -12,13 +14,13 @@ public class TankMessage {
   /**
    * Constructor with sequence id, used in consume request.
    */
-  public TankMessage(long sequenceNum, long timestamp, byte[] key, byte[] message) {
+  public TankMessage(long sequenceNum, long timestamp, ByteBuffer key, ByteBuffer message) {
     this.seqNum = sequenceNum;
     this.timestamp = timestamp;
     this.message = message;
     this.key = key;
 
-    if (key.length > 0) {
+    if (key.remaining() > 0) {
       haveKey = true;
     } else {
       haveKey = false;
@@ -28,9 +30,9 @@ public class TankMessage {
   /**
    * Constructor without sequence id used for publish requests.
    */
-  public TankMessage(byte[] key, byte[] message) {
+  public TankMessage(ByteBuffer key, ByteBuffer message) {
     this.key = key;
-    if (key.length > 0) {
+    if (key.remaining() > 0) {
       haveKey = true;
     } else {
       haveKey = false;
@@ -41,7 +43,7 @@ public class TankMessage {
   /**
    * Constructor without sequence id or key used for publish requests.
    */
-  public TankMessage(byte[] message) {
+  public TankMessage(ByteBuffer message) {
     haveKey = false;
     this.message = message;
   }
@@ -69,11 +71,15 @@ public class TankMessage {
     }
 
     if (haveKey) {
-      baos.write(ByteManipulator.getStr8(key));
+      baos.write(ByteManipulator.getStr8(key.array()));
     }
 
-    baos.write(ByteManipulator.getVarInt(message.length));
-    baos.write(message);
+    baos.write(ByteManipulator.getVarInt(message.remaining()));
+    //baos.write(message);
+    while (message.hasRemaining()) {
+      baos.write(message.get());
+    }
+    message.rewind();
     return baos.toByteArray();
   }
 
@@ -94,7 +100,7 @@ public class TankMessage {
   /**
    * Returns the message.
    */
-  public byte[] getMessage() {
+  public ByteBuffer getMessage() {
     return message;
   }
 
@@ -108,13 +114,13 @@ public class TankMessage {
   /**
    * Returns the message's key.
    */
-  public byte[] getKey() {
+  public ByteBuffer getKey() {
     return key;
   }
 
   private boolean haveKey;
   private long seqNum;
   private long timestamp;
-  private byte[] key;
-  private byte[] message;
+  private ByteBuffer key;
+  private ByteBuffer message;
 }

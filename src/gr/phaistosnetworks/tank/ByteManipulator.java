@@ -254,13 +254,15 @@ public class ByteManipulator {
   /**
    * Returns a String using the str8 notation.
    */
-  public String getStr8() {
+  public ByteBuffer getStr8() {
     int length = asInt(input.get());
+    ByteBuffer str8 = ByteBuffer.allocate(length);
 
-    byte [] op = new byte[length];
-    input.get(op, 0, length);
+    for (int i = 0; i < length ; i++) {
+      str8.put(input.get());
+    }
 
-    return new String(op);
+    return str8;
   }
 
   /**

@@ -261,7 +261,7 @@ public class TankClient {
     log.fine(String.format("topics count: %d", totalTopics));
 
     for (int t = 0; t < totalTopics; t++) {
-      String topic = input.getStr8();
+      String topic = input.getStr8().array().toString();
       long totalPartitions = input.deSerialize(U8);
       log.fine("topic name: " + topic);
       log.fine("Total Partitions: " + totalPartitions);
@@ -459,22 +459,22 @@ public class TankClient {
             log.finer("Using last Timestamp : " + timestamp);
           }
 
-          String key = new String();
+          ByteBuffer key = ByteBuffer.allocate(0);
           if ((flags & HAVE_KEY) != 0) {
             key = chunkMsgs.getStr8();
-            log.finer("We have a key and it is : " + key);
+            //log.finer("We have a key and it is : " + key);
           }
 
           long contentLength = chunkMsgs.getVarInt();
           log.finer("Content Length: " + contentLength);
 
-          byte [] message = chunkMsgs.getNextBytes((int)contentLength);
-          log.finest(new String(message));
+          ByteBuffer message = chunkMsgs.getNextBytes((int)contentLength);
+          //log.finest(new String(message));
 
           // Don't save the message if it has a sequence number lower than we requested.
           if (curSeqNum >= requestedSeqNum) {
             topicPartition.addMessage(new TankMessage(
-                curSeqNum, timestamp, key.getBytes(), message));
+                curSeqNum, timestamp, key, message));
           }
           curSeqNum++;
           firstMessageNum++;
