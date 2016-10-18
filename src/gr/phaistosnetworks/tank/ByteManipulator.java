@@ -163,7 +163,7 @@ public class ByteManipulator {
   public long getVarInt() {
     long result = 0;
     int length = 0;
-    this.flushOffset();
+    this.flushOffset(true);
 
     if (asInt(input.get(0)) > VARINT_BYTE_MAX) {
       if (asInt(input.get(1)) > VARINT_BYTE_MAX) {
@@ -297,10 +297,24 @@ public class ByteManipulator {
   }
 
   /**
-   * Flushes processed bytes from byte array.
+   * Flush processed bytes from byte array.
    */
   public void flushOffset() {
-    input = input.slice();
+    this.flushOffset(false);
+  }
+
+  /**
+   * Flush processed bytes from byte array.
+   *
+   * @param storePosition instructs it to store position. i.e. when called internally.
+   */
+  private void flushOffset(boolean storePosition) {
+    if (storePosition) {
+      storedPos += getOffset();
+    } else {
+      storedPos = 0;
+    }
+    this.input = input.slice();
     totalLength = input.remaining();
   }
 
@@ -308,19 +322,19 @@ public class ByteManipulator {
    * Retuns the current count of processed bytes.
    */
   public int getOffset() {
-    return input.arrayOffset();
+    return storedPos + input.position();
   }
 
   /**
    * Resets current processed byte counter.
    */
   public void resetOffset() {
-    offset = 0;
+    input.rewind();
   }
 
   private ByteBuffer input;
-  private int offset;
   private int totalLength;
+  private int storedPos = 0;
   private static final byte VARINT_BYTE_SHIFT_ONE = 7;
   private static final byte VARINT_BYTE_SHIFT_TWO = 14;
   private static final byte VARINT_BYTE_SHIFT_THREE = 21;
