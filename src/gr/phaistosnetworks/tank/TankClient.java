@@ -8,6 +8,8 @@ import java.io.UnsupportedEncodingException;
 
 import java.net.Socket;
 
+import java.nio.ByteBuffer;
+
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.List;
@@ -117,7 +119,7 @@ public class TankClient {
    * then it will loop and append until payload size is reached.
    */
   private List<TankResponse> poll(short requestType, TankRequest request) throws TankException {
-    ByteManipulator input = new ByteManipulator(null);
+    ByteManipulator input = new ByteManipulator();
     int remainder = 0;
     int toRead = 0;
     while (true) {
@@ -138,17 +140,21 @@ public class TankClient {
         toRead = remainder;
       }
 
-      byte [] ba = new byte[toRead];
+      ByteBuffer buf = ByteBuffer.allocate(toRead);
       try {
-        bis.read(ba, 0, toRead);
+        for (int i = 0; i < toRead; i++) {
+          int byteRead = bis.read();
+          buf.put( (byte) byteRead);
+        }
+        buf.flip();
       } catch (IOException ioe) {
         log.log(Level.SEVERE, "Unable to read from socket", ioe);
       }
 
       if (remainder > 0) {
-        input.append(ba);
+        input.append(buf);
       } else {
-        input = new ByteManipulator(ba);
+        input = new ByteManipulator(buf);
       }
 
       byte resp = (byte)input.deSerialize(U8);
@@ -410,8 +416,9 @@ public class TankClient {
           log.finer("Snappy uncompression");
           try {
             chunkMsgs = new ByteManipulator(
-                input.snappyUncompress(
-                    bundleLength - input.getOffset()));
+                ByteBuffer.wrap(
+                    input.snappyUncompress(
+                        bundleLength - input.getOffset())));
           } catch (IOException ioe) {
             log.log(Level.SEVERE, "ERROR uncompressing", ioe);
             return response;
