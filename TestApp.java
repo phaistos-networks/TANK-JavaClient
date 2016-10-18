@@ -5,6 +5,7 @@ import gr.phaistosnetworks.tank.TankMessage;
 import gr.phaistosnetworks.tank.TankRequest;
 import gr.phaistosnetworks.tank.TankResponse;
 
+import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.util.List;
 
@@ -20,7 +21,7 @@ class TestApp {
     for (String testString : testStrings) {
       try {
         foo = ByteManipulator.getStr8(testString);
-        String myStr8 = new ByteManipulator(foo).getStr8();
+        String myStr8 = new ByteManipulator(ByteBuffer.wrap(foo)).getStr8();
         if (! myStr8.equals(testString)) {
           System.err.println("Str8 conversion is broken");
           System.err.println("Expected:" + testString + "\n but got:" + myStr8);
@@ -47,7 +48,7 @@ class TestApp {
     for (long testVal : testVals) {
       foo = ByteManipulator.serialize(testVal, 64);
 
-      testOutput = new ByteManipulator(foo).deSerialize(64);
+      testOutput = new ByteManipulator(ByteBuffer.wrap(foo)).deSerialize(64);
       if (testOutput != testVal) {
         System.err.println("deserialization is broken");
         System.err.println("Expected:" + testVal + " but got:" + Long.toString(testOutput));
@@ -59,7 +60,7 @@ class TestApp {
     for (long testVal : testVals) {
       try {
         foo = ByteManipulator.getVarInt(testVal);
-        testOutput = new ByteManipulator(foo).getVarInt();
+        testOutput = new ByteManipulator(ByteBuffer.wrap(foo)).getVarInt();
         if (testOutput != testVal) {
           System.err.println("Varint conversion is broken");
           System.err.println("Expected:" + testVal + "\n but got:" + testOutput);
