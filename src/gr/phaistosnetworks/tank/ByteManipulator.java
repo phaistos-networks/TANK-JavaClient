@@ -5,17 +5,28 @@ import org.xerial.snappy.Snappy;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 
+import java.nio.ByteBuffer;
+
 /**
  * Purpose: To perform magic tricks on bytes.
  */
 public class ByteManipulator {
   /**
+   * Empty constructor
+   */
+  public ByteManipulator() {
+    this.input = new byte[0];
+    this.offset = 0;
+  }
+
+  /**
    * Constructor that sets the byte array to be manipulated.
    *
    * @param input the byte array to be manipulated;
    */
-  public ByteManipulator(byte[] input) {
-    this.input = input;
+  public ByteManipulator(ByteBuffer input) {
+    this.input = new byte[input.remaining()];
+    input.get(this.input, 0, this.input.length);
     this.offset = 0;
   }
 
@@ -24,15 +35,15 @@ public class ByteManipulator {
    *
    * @param toAppend the byte array to append.
    */
-  public void append(byte[] toAppend) {
-    byte [] souma = new byte[input.length + toAppend.length];
+  public void append(ByteBuffer toAppend) {
+    byte [] souma = new byte[input.length + toAppend.array().length];
 
     for (int i = 0; i < input.length; i++) {
       souma[i] = input[i];
     }
 
-    for (int i = 0; i < toAppend.length; i++) {
-      souma[input.length + i] = toAppend[i];
+    for (int i = 0; i < toAppend.array().length; i++) {
+      souma[input.length + i] = toAppend.get();
     }
 
     this.input = souma;
