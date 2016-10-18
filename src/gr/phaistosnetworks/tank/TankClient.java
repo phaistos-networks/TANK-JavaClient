@@ -142,9 +142,9 @@ public class TankClient {
 
       ByteBuffer buf = ByteBuffer.allocate(toRead);
       try {
-        for (int i=0; i<toRead; i++) {
-          int b = bis.read();
-          buf.put( (byte) b);
+        for (int i = 0; i < toRead; i++) {
+          int byteRead = bis.read();
+          buf.put( (byte) byteRead);
         }
         buf.flip();
       } catch (IOException ioe) {

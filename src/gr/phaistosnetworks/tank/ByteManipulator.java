@@ -12,7 +12,7 @@ import java.nio.ByteBuffer;
  */
 public class ByteManipulator {
   /**
-   * Empty constructor
+   * Empty constructor.
    */
   public ByteManipulator() {
     this.input = new byte[0];
