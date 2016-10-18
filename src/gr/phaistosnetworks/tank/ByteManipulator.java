@@ -20,9 +20,9 @@ public class ByteManipulator {
   }
 
   /**
-   * Constructor that sets the byte array to be manipulated.
+   * Constructor that sets thei ByteBuffer to be manipulated.
    *
-   * @param input the byte array to be manipulated;
+   * @param input the ByteBuffer to be manipulated;
    */
   public ByteManipulator(ByteBuffer input) {
     this.input = input;
@@ -30,9 +30,9 @@ public class ByteManipulator {
   }
 
   /**
-   * Appends a byte array to the current one.
+   * Appends a ButeBuffer to the remainder of the current one.
    *
-   * @param toAppend the byte array to append.
+   * @param toAppend the ByteBuffer to append.
    */
   public void append(ByteBuffer toAppend) {
     ByteBuffer souma = ByteBuffer.allocate(input.remaining() + toAppend.remaining());
@@ -51,11 +51,11 @@ public class ByteManipulator {
   }
 
   /**
-   * Returns the next length bytes from the current byte array.
+   * Returns the next length bytes from the current ByteBuffer.
    * There is no health check. If you request more bytes than available, boom
    *
    * @param length the amount of bytes to return
-   * @return a byte array containing the requested length of bytes
+   * @return a new ByteBuffer containing the requested length of bytes
    */
   public ByteBuffer getNextBytes(int length) {
     ByteBuffer nextBytes = ByteBuffer.allocate(length);
@@ -158,7 +158,7 @@ public class ByteManipulator {
   }
 
   /**
-   * Reads a varint from the next unprocessed bytes of the current array.
+   * Reads a varint from the ByteBuffer.
    *
    * @return the value of the varint
    */
@@ -299,14 +299,14 @@ public class ByteManipulator {
   }
 
   /**
-   * Flush processed bytes from byte array.
+   * Flushes processed bytes from ByteBuffer.
    */
   public void flushOffset() {
     this.flushOffset(false);
   }
 
   /**
-   * Flush processed bytes from byte array.
+   * Flushes processed bytes from ByteBuffer.
    *
    * @param storePosition instructs it to store position. i.e. when called internally.
    */
@@ -321,14 +321,14 @@ public class ByteManipulator {
   }
 
   /**
-   * Retuns the current count of processed bytes.
+   * Returns the current count of processed bytes since last Flush.
    */
   public int getOffset() {
     return storedPos + input.position();
   }
 
   /**
-   * Resets current processed byte counter.
+   * Rewinds ByteBuffer.
    */
   public void resetOffset() {
     input.rewind();
