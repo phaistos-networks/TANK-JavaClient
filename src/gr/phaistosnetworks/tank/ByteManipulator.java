@@ -15,8 +15,8 @@ public class ByteManipulator {
    * Empty constructor.
    */
   public ByteManipulator() {
-    this.input = new byte[0];
-    this.offset = 0;
+    input = ByteBuffer.allocate(0);
+    this.totalLength = 0;
   }
 
   /**
@@ -25,9 +25,8 @@ public class ByteManipulator {
    * @param input the byte array to be manipulated;
    */
   public ByteManipulator(ByteBuffer input) {
-    this.input = new byte[input.remaining()];
-    input.get(this.input, 0, this.input.length);
-    this.offset = 0;
+    this.input = input;
+    this.totalLength = input.remaining();
   }
 
   /**
@@ -36,16 +35,18 @@ public class ByteManipulator {
    * @param toAppend the byte array to append.
    */
   public void append(ByteBuffer toAppend) {
-    byte [] souma = new byte[input.length + toAppend.array().length];
+    ByteBuffer souma = ByteBuffer.allocate(input.remaining() + toAppend.remaining());
 
-    for (int i = 0; i < input.length; i++) {
-      souma[i] = input[i];
+    while (input.hasRemaining()) {
+      souma.put(input.get());
     }
 
-    for (int i = 0; i < toAppend.array().length; i++) {
-      souma[input.length + i] = toAppend.get();
+    while (toAppend.hasRemaining()) {
+      souma.put(toAppend.get());
     }
 
+    souma.flip();
+    this.totalLength = souma.remaining();
     this.input = souma;
   }
 
@@ -57,12 +58,9 @@ public class ByteManipulator {
    * @return a byte array containing the requested length of bytes
    */
   public byte[] getNextBytes(int length) {
-    byte [] bar = new byte[length];
-    for (int i = 0; i < length; i++) {
-      bar[i] = input[offset + i];
-    }
-    offset += length;
-    return bar;
+    byte [] nextBytes = new byte[length];
+    input.get(nextBytes, 0, length);
+    return nextBytes;
   }
 
   /**
@@ -83,10 +81,7 @@ public class ByteManipulator {
    */
   public byte[] snappyUncompress(long length) throws IOException {
     byte [] toUnCompress = new byte[(int)length];
-    for (int i = 0; i < length; i++) {
-      toUnCompress[i] = input[offset + i];
-    }
-    offset += length;
+    input.get(toUnCompress, 0, (int)length);
     return Snappy.uncompress(toUnCompress);
   }
 
@@ -118,11 +113,10 @@ public class ByteManipulator {
     long result = 0L;
 
     for (int i = 0, n = 0; i != length; ++i, n += Byte.SIZE) {
-      long mask = input[offset + i] & BYTE_MAX;
+      long mask = input.get() & BYTE_MAX;
       result |= (mask << n);
     }
 
-    offset += length;
     return result;
   }
 
@@ -169,41 +163,44 @@ public class ByteManipulator {
   public long getVarInt() {
     long result = 0;
     int length = 0;
+    this.flushOffset();
 
-    if (asInt(input[offset]) > VARINT_BYTE_MAX) {
-      if (asInt(input[offset + 1]) > VARINT_BYTE_MAX) {
-        if (asInt(input[offset + 2]) > VARINT_BYTE_MAX) {
-          if (asInt(input[offset + 3]) > VARINT_BYTE_MAX) {
+    if (asInt(input.get(0)) > VARINT_BYTE_MAX) {
+      if (asInt(input.get(1)) > VARINT_BYTE_MAX) {
+        if (asInt(input.get(2)) > VARINT_BYTE_MAX) {
+          if (asInt(input.get(3)) > VARINT_BYTE_MAX) {
             length = 5;
-            result |= flipped(input[offset])
-              | (flipped(input[offset + 1]) << VARINT_BYTE_SHIFT_ONE)
-              | (flipped(input[offset + 2]) << VARINT_BYTE_SHIFT_TWO)
-              | (flipped(input[offset + 3]) << VARINT_BYTE_SHIFT_THREE)
-              | (asInt(input[offset + 4]) << VARINT_BYTE_SHIFT_FOUR);
+            result |= flipped(input.get(0))
+              | (flipped(input.get(1)) << VARINT_BYTE_SHIFT_ONE)
+              | (flipped(input.get(2)) << VARINT_BYTE_SHIFT_TWO)
+              | (flipped(input.get(3)) << VARINT_BYTE_SHIFT_THREE)
+              | (asInt(input.get(4)) << VARINT_BYTE_SHIFT_FOUR);
           } else {
             length = 4;
-            result |= flipped(input[offset])
-              | (flipped(input[offset + 1]) << VARINT_BYTE_SHIFT_ONE)
-              | (flipped(input[offset + 2]) << VARINT_BYTE_SHIFT_TWO)
-              | (asInt(input[offset + 3]) << VARINT_BYTE_SHIFT_THREE);
+            result |= flipped(input.get(0))
+              | (flipped(input.get(1)) << VARINT_BYTE_SHIFT_ONE)
+              | (flipped(input.get(2)) << VARINT_BYTE_SHIFT_TWO)
+              | (asInt(input.get(3)) << VARINT_BYTE_SHIFT_THREE);
           }
         } else {
           length = 3;
-          result |= flipped(input[offset])
-            | (flipped(input[offset + 1]) << VARINT_BYTE_SHIFT_ONE)
-            | (asInt(input[offset + 2]) << VARINT_BYTE_SHIFT_TWO);
+          result |= flipped(input.get(0))
+            | (flipped(input.get(1)) << VARINT_BYTE_SHIFT_ONE)
+            | (asInt(input.get(2)) << VARINT_BYTE_SHIFT_TWO);
         }
       } else {
         length = 2;
-        result |= flipped(input[offset])
-          | (asInt(input[offset + 1]) << VARINT_BYTE_SHIFT_ONE);
+        result |= flipped(input.get(0))
+          | (asInt(input.get(1)) << VARINT_BYTE_SHIFT_ONE);
       }
     } else {
-      result |= asInt(input[offset]);
+      result |= asInt(input.get(0));
       length = 1;
     }
 
-    offset += length;
+    for (int i = 0; i < length; i++) {
+      input.get();
+    }
     return result;
   }
 
@@ -256,14 +253,11 @@ public class ByteManipulator {
    * Returns a String using the str8 notation.
    */
   public String getStr8() {
-    int length = asInt(input[offset]);
-    offset++;
+    int length = asInt(input.get());
 
     byte [] op = new byte[length];
-    for (int i = 0; i < length; i++) {
-      op[i] = input[offset + i];
-    }
-    offset += length;
+    input.get(op, 0, length);
+
     return new String(op);
   }
 
@@ -299,26 +293,22 @@ public class ByteManipulator {
    * Returns the amount of unprocessed bytes left.
    */
   public int getRemainingLength() {
-    return input.length - offset;
+    return input.remaining();
   }
 
   /**
    * Flushes processed bytes from byte array.
    */
   public void flushOffset() {
-    byte [] newInput = new byte[getRemainingLength()];
-    for (int i = 0; i < getRemainingLength(); i++) {
-      newInput[i] = input[offset + i];
-    }
-    input = newInput;
-    offset = 0;
+    input = input.slice();
+    totalLength = input.remaining();
   }
 
   /**
    * Retuns the current count of processed bytes.
    */
   public int getOffset() {
-    return offset;
+    return input.arrayOffset();
   }
 
   /**
@@ -328,8 +318,9 @@ public class ByteManipulator {
     offset = 0;
   }
 
-  private byte [] input;
+  private ByteBuffer input;
   private int offset;
+  private int totalLength;
   private static final byte VARINT_BYTE_SHIFT_ONE = 7;
   private static final byte VARINT_BYTE_SHIFT_TWO = 14;
   private static final byte VARINT_BYTE_SHIFT_THREE = 21;
