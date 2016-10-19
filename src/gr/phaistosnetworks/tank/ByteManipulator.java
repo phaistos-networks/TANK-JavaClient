@@ -20,7 +20,7 @@ public class ByteManipulator {
   }
 
   /**
-   * Constructor that sets thei ByteBuffer to be manipulated.
+   * Constructor that sets the ByteBuffer to be manipulated.
    *
    * @param input the ByteBuffer to be manipulated;
    */
