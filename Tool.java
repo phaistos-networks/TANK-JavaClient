@@ -76,9 +76,7 @@ class Tool {
             publish.publishMessage(
                 topic,
                 partition,
-                new TankMessage(
-                    key.getBytes(),
-                    args[i].getBytes(Charset.forName("UTF-8"))));
+                new TankMessage(key, args[i]));
           }
           break;
         default:
@@ -119,8 +117,8 @@ class Tool {
           for (TankMessage tm : tr.getMessages()) {
             System.out.println("seq: " + tm.getSeqNum()
                 + " date: " + convertTs(tm.getTimestamp())
-                + " key: " + new String(tm.getKey())
-                + " message: " + new String(tm.getMessage()));
+                + " key: " + tm.getKeyAsString()
+                + " message: " + tm.getMessageAsString());
           }
 
           if (tr.getFetchSize() > fetchSize) {
