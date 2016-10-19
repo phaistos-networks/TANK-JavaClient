@@ -261,7 +261,7 @@ public class TankClient {
     log.fine(String.format("topics count: %d", totalTopics));
 
     for (int t = 0; t < totalTopics; t++) {
-      String topic = input.getStr8().array().toString();
+      String topic = new String(input.getStr8().array());
       long totalPartitions = input.deSerialize(U8);
       log.fine("topic name: " + topic);
       log.fine("Total Partitions: " + totalPartitions);

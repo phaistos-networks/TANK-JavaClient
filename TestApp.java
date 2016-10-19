@@ -229,8 +229,8 @@ class TestApp {
           for (TankMessage tm : tr.getMessages()) {
             System.out.println("seq: " + tm.getSeqNum()
                 + " ts: " + tm.getTimestamp()
-                + " key: " + tm.getKey().array().toString()
-                + " message: " + tm.getMessage().array().toString());
+                + " key: " + new String(tm.getKey().array())
+                + " message: " + new String(tm.getMessage().array()));
           }
 
           consume.consumeTopicPartition(

@@ -120,8 +120,8 @@ class Tool {
           for (TankMessage tm : tr.getMessages()) {
             System.out.println("seq: " + tm.getSeqNum()
                 + " date: " + convertTs(tm.getTimestamp())
-                + " key: " + tm.getKey().array().toString()
-                + " message: " + tm.getMessage().array().toString());
+                + " key: " + new String(tm.getKey().array())
+                + " message: " + new String(tm.getMessage().array()));
           }
 
           if (tr.getFetchSize() > fetchSize) {
