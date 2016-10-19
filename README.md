@@ -32,8 +32,8 @@ pubRec.publishMessage(
   topic,
   partition,
   new TankMessage(
-  key.getBytes(),
-  message.getBytes()));
+    key,
+    message));
 
 tc.publish(pubReq);
 ```
@@ -43,7 +43,7 @@ tc.publish(pubReq);
 List<TankResponse> response = tc.publish(pubReq);
 for (TankResponse tr : response) {
   if (tr.hasError()) {
-      System.out.println("Error, for topic " + tr.getTopic() + ":" + tr.getPartition());
+    System.out.println("Error, for topic " + tr.getTopic() + ":" + tr.getPartition());
   }
 }
 ```
@@ -61,8 +61,8 @@ for (TankResponse tr : responses) {
     System.out.println(
         "seq: " + tm.getSeqNum()
         + " ts: " + tm.getTimestamp()
-        + ((tm.haveKey()) ? " key: " + new String(tm.getKey()) : "")
-        + " message: " + new String(tm.getMessage()));
+        + ((tm.haveKey()) ? " key: " + tm.getKeyAsString() : "")
+        + " message: " + tm.getMessageAsString());
   }
 }
 ```
@@ -80,7 +80,6 @@ while (true) {
       fetchSize = tr.getFetchSize();
     }
 
-
     // Detect if requested Seq Num is out of bounds and handle it
     if (tr.hasError() && tr.getError() == TankClient.ERROR_OUT_OF_BOUNDS) {
       if (tr.getRequestSeqNum() < tr.getFirstAvailSeqNum()) {
@@ -92,10 +91,10 @@ while (true) {
       nextSeqNum = tr.getNextSeqNum();
     }
     consumeReq.consumeTopicPartition(
-        tr.getTopic(),
-        tr.getPartition(),
-        nextSeqNum,
-        fetchSize);
+      tr.getTopic(),
+      tr.getPartition(),
+      nextSeqNum,
+      fetchSize);
   }
 }
 
