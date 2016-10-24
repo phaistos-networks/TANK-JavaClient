@@ -15,7 +15,7 @@ public class ByteManipulator {
    * Empty constructor.
    */
   public ByteManipulator() {
-    input = ByteBuffer.allocate(0);
+    input = ByteBuffer.allocateDirect(0);
     this.totalLength = 0;
   }
 
@@ -30,12 +30,12 @@ public class ByteManipulator {
   }
 
   /**
-   * Appends a ButeBuffer to the remainder of the current one.
+   * Appends a ByteBuffer to the remainder of the current one.
    *
    * @param toAppend the ByteBuffer to append.
    */
   public void append(ByteBuffer toAppend) {
-    ByteBuffer souma = ByteBuffer.allocate(input.remaining() + toAppend.remaining());
+    ByteBuffer souma = ByteBuffer.allocateDirect(input.remaining() + toAppend.remaining());
 
     while (input.hasRemaining()) {
       souma.put(input.get());
@@ -58,10 +58,11 @@ public class ByteManipulator {
    * @return a new ByteBuffer containing the requested length of bytes
    */
   public ByteBuffer getNextBytes(int length) {
-    ByteBuffer nextBytes = ByteBuffer.allocate(length);
+    ByteBuffer nextBytes = ByteBuffer.allocateDirect(length);
     for (int i = 0; i < length ; i++) {
       nextBytes.put(input.get());
     }
+    nextBytes.flip();
     return nextBytes;
   }
 
@@ -81,10 +82,18 @@ public class ByteManipulator {
    * @param length the amount of bytes to uncompress
    * @return the uncompressed data.
    */
-  public byte[] snappyUncompress(long length) throws IOException {
-    byte [] toUnCompress = new byte[(int)length];
-    input.get(toUnCompress, 0, (int)length);
-    return Snappy.uncompress(toUnCompress);
+  public ByteBuffer snappyUncompress(long length) throws IOException {
+    ByteBuffer toDecompress = input.slice();
+    toDecompress.limit((int)length);
+    ByteBuffer out = ByteBuffer.allocateDirect(
+        Snappy.uncompressedLength(toDecompress));
+
+    int size = Snappy.uncompress(toDecompress, out);
+    for (int i = 0; i < length ; i++) {
+      input.get();
+    }
+
+    return out;
   }
 
   /**
@@ -256,13 +265,22 @@ public class ByteManipulator {
    */
   public ByteBuffer getStr8() {
     int length = asInt(input.get());
-    ByteBuffer str8 = ByteBuffer.allocate(length);
+    ByteBuffer str8 = ByteBuffer.allocateDirect(length);
 
     for (int i = 0; i < length ; i++) {
       str8.put(input.get());
     }
-
+    str8.flip();
     return str8;
+  }
+
+  public String getStr8AsString() {
+    ByteBuffer str8 = getStr8();
+    byte [] output = new byte[str8.remaining()];
+    for (int i = 0; i < output.length; i++) {
+      output[i] = str8.get();
+    }
+    return new String(output);
   }
 
   /**
@@ -297,7 +315,7 @@ public class ByteManipulator {
    * Returns the amount of unprocessed bytes left.
    */
   public int getRemainingLength() {
-    return input.remaining();
+    return this.input.remaining();
   }
 
   /**
