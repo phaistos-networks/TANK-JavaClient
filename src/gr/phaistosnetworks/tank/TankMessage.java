@@ -15,7 +15,7 @@ public class TankMessage {
    * Blank Constructor.
    */
   public TankMessage() {
-    haveKey = false;
+    hasKey = false;
   }
 
   /**
@@ -129,7 +129,7 @@ public class TankMessage {
   public void setKey(ByteBuffer key) {
     this.key = key;
     if (key.remaining() > 0) {
-      haveKey = true;
+      hasKey = true;
     }
   }
 
@@ -174,7 +174,7 @@ public class TankMessage {
     if (useLastTs) {
       flags |= TankClient.USE_LAST_SPECIFIED_TS;
     }
-    if (haveKey) { 
+    if (hasKey) {
       flags |= TankClient.HAVE_KEY;
     }
     baos.write(ByteManipulator.serialize(flags, TankClient.U8));
@@ -183,7 +183,7 @@ public class TankMessage {
       baos.write(ByteManipulator.serialize(System.currentTimeMillis(), TankClient.U64));
     }
 
-    if (haveKey) {
+    if (hasKey) {
       baos.write(ByteManipulator.getStr8(key.array()));
     }
 
@@ -221,21 +221,25 @@ public class TankMessage {
    * Returns the message as a byte array.
    */
   public byte [] getMessageAsArray() {
-    return message.array();
+    byte [] output = new byte [message.remaining()];
+    for (int i = 0 ; i < output.length ; i++) {
+      output[i] = message.get();
+    }
+    return output;
   }
 
   /**
    * Returns the message as a String.
    */
   public String getMessageAsString() {
-    return new String(message.array());
+    return new String(getMessageAsArray());
   }
 
   /**
    * Does this message has a key.
    */
-  public boolean haveKey() {
-    return haveKey;
+  public boolean hasKey() {
+    return hasKey;
   }
 
   /**
@@ -249,17 +253,21 @@ public class TankMessage {
    * Returns the message's key as a byte array.
    */
   public byte [] getKeyAsArray() {
-    return key.array();
+    byte [] output = new byte [key.remaining()];
+    for (int i = 0 ; i < output.length ; i++) {
+      output[i] = key.get();
+    }
+    return output;
   }
 
   /**
    * Returns the message's key as a String.
    */
   public String getKeyAsString() {
-    return new String(key.array());
+    return new String(getKeyAsArray());
   }
 
-  private boolean haveKey;
+  private boolean hasKey;
   private long seqNum;
   private long timestamp;
   private ByteBuffer key;
