@@ -150,5 +150,5 @@ class Tool {
     return new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(ts);
   }
 
-  private static long fetchSize = 20000L;
+  private static long fetchSize = 1000L;
 }

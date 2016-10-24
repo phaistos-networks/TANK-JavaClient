@@ -21,7 +21,7 @@ class TestApp {
     for (String testString : testStrings) {
       try {
         foo = ByteManipulator.getStr8(testString);
-        String myStr8 = new String(new ByteManipulator(ByteBuffer.wrap(foo)).getStr8().array());
+        String myStr8 = new ByteManipulator(ByteBuffer.wrap(foo)).getStr8AsString();
         if (! myStr8.equals(testString)) {
           System.err.println("Str8 conversion is broken");
           System.err.println("Expected:" + testString + "\n but got:" + myStr8);
@@ -164,7 +164,7 @@ class TestApp {
     publish.publishMessage("foo", 1, new TankMessage(
         "Μία μακρουλή γραμμή για να περάσουμε το όριο των 1024 μπάιτς στο πιτς φιτιλι 9"));
 
-    if (false) {
+    if (true) {
       responses = tc.publish(publish);
       for (TankResponse tr : responses) {
         if (tr.hasError()) {
@@ -247,5 +247,5 @@ class TestApp {
     }
   }
 
-  private static long fetchSize = 20000L;
+  private static long fetchSize = 100L;
 }
