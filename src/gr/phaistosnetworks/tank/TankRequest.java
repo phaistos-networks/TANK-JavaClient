@@ -186,10 +186,6 @@ public class TankRequest {
     return consumeRequestTopics.get(topic).get(partition).getKey();
   }
 
-
-
-
-
   /**
    * See tank_encoding.md for bundle details.
    */
