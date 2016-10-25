@@ -346,6 +346,9 @@ public class TankClient {
       TankResponse topicPartition = new TankResponse(c.topic, c.partition, c.errorOrFlags);
 
       topicPartition.setRequestSeqNum(requestedSeqNum);
+      topicPartition.setHighWaterMark(c.highWaterMark);
+      topicPartition.setFirstAvailSeqNum(c.baseAbsSeqNum);
+
 
       /*
        * if a previous bundle was incomplete, there will not be any bytes left.
