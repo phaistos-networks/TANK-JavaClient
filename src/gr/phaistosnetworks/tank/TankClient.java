@@ -152,7 +152,7 @@ public class TankClient {
       }
 
       if (remainder > 0) {
-        log.info("***** Partial Data ******");
+        log.finer("***** Partial Data ******");
         input.append(buf);
       } else {
         input = new ByteManipulator(buf);
