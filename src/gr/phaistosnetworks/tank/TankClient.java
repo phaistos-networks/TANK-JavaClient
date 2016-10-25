@@ -338,10 +338,6 @@ public class TankClient {
 
     boolean incompleteBundle = false;
     for (Chunk c : chunkList) {
-      if (incompleteBundle) {
-        log.fine("incomplete bundle found. Stopping processing");
-        break;
-      }
       long bundleLength = 0;
       long requestedSeqNum = request.getSequenceNum(c.topic, c.partition);
       log.fine("Chunk for " + c.topic + ":" + c.partition
@@ -350,7 +346,13 @@ public class TankClient {
       TankResponse topicPartition = new TankResponse(c.topic, c.partition, c.errorOrFlags);
 
       topicPartition.setRequestSeqNum(requestedSeqNum);
-      if (c.length == 0) {
+
+      /*
+       * if a previous bundle was incomplete, there will not be any bytes left.
+       * So there's nothing to process. Instead just return the same values as
+       * were requested.
+       */
+      if (c.length == 0 || incompleteBundle) {
         response.add(topicPartition);
         continue;
       }
@@ -474,12 +476,11 @@ public class TankClient {
           long contentLength = bundleMsgs.getVarInt();
           log.finer("Message Length: " + contentLength);
           if (contentLength > bundleMsgs.getRemainingLength()) {
-            log.info("Message didn't fit !!!");
+            log.finer("Not enough bytes left for message. Skipping.");
             break;
           }
 
           ByteBuffer message = bundleMsgs.getNextBytes((int)contentLength);
-          //log.finest(new String(message));
           log.finer("Remaining: " + bundleMsgs.getRemainingLength());
 
           // Don't save the message if it has a sequence number lower than we requested.
