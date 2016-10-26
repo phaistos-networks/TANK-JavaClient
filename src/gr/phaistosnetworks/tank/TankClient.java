@@ -441,6 +441,7 @@ public class TankClient {
         long timestamp = 0L;
         long prevSeqNum = firstMessageNum;
         long curSeqNum = firstMessageNum;
+        long messageLength = 0L;
 
         for (int i = 0; i < messageCount; i++) {
           log.finer("#### Bundle Message " + (i + 1) + " out of " + messageCount);
@@ -476,14 +477,22 @@ public class TankClient {
             //log.finer("We have a key and it is : " + key);
           }
 
-          long contentLength = bundleMsgs.getVarInt();
-          log.finer("Message Length: " + contentLength);
-          if (contentLength > bundleMsgs.getRemainingLength()) {
-            log.finer("Not enough bytes left for message. Skipping.");
+          try {
+            messageLength = bundleMsgs.getVarInt();
+          } catch (IndexOutOfBoundsException ioobe) {
+            log.fine("Messag length varint incomplete");
+            incompleteBundle = true;
             break;
           }
 
-          ByteBuffer message = bundleMsgs.getNextBytes((int)contentLength);
+          log.finer("Message Length: " + messageLength);
+          if (messageLength > bundleMsgs.getRemainingLength()) {
+            log.finer("Not enough bytes left for message. Skipping.");
+            incompleteBundle = true;
+            break;
+          }
+
+          ByteBuffer message = bundleMsgs.getNextBytes((int)messageLength);
           log.finer("Remaining: " + bundleMsgs.getRemainingLength());
 
           // Don't save the message if it has a sequence number lower than we requested.
