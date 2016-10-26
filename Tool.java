@@ -19,6 +19,7 @@ class Tool {
     long id = 0;
     boolean consumate = false;
     boolean doProduce = false;
+    boolean doBench = true;
     TankRequest publish = new TankRequest(TankClient.PUBLISH_REQ);
 
     for (int i = 0 ; i < args.length; i++) {
@@ -50,6 +51,9 @@ class Tool {
           } catch (NumberFormatException | ArrayIndexOutOfBoundsException nfe) {
             System.out.println("I'll give you 0 now and 0 when we reach Alderaan. Partition 0.");
           }
+          break;
+        case "-bench":
+          doBench = true;
           break;
         case "-get":
         case "-consume":
@@ -106,7 +110,8 @@ class Tool {
     TankRequest consume = new TankRequest(TankClient.CONSUME_REQ);
     consume.consumeTopicPartition(topic, partition, id, fetchSize);
     List<TankResponse> response;
-
+    long storedReq = id;
+    long storedReqTime = System.currentTimeMillis();
     if (consumate) {
       long nextSeqNum = 0L;
       while (true) {
@@ -114,11 +119,13 @@ class Tool {
         consume = new TankRequest(TankClient.CONSUME_REQ);
         for (TankResponse tr : response) {
           //System.out.println("topic: " + tr.getTopic() + " partition: " + tr.getPartition());
-          for (TankMessage tm : tr.getMessages()) {
-            System.out.println("seq: " + tm.getSeqNum()
-                + " date: " + convertTs(tm.getTimestamp())
-                + " key: " + tm.getKeyAsString()
-                + " message: " + tm.getMessageAsString());
+          if (!doBench) {
+            for (TankMessage tm : tr.getMessages()) {
+              System.out.println("seq: " + tm.getSeqNum()
+                  + " date: " + convertTs(tm.getTimestamp())
+                  + " key: " + tm.getKeyAsString()
+                  + " message: " + tm.getMessageAsString());
+            }
           }
 
           if (tr.getFetchSize() > fetchSize) {
@@ -141,6 +148,15 @@ class Tool {
               nextSeqNum,
               fetchSize
           );
+        }
+        if ((nextSeqNum - storedReq) > 10000) {
+          long curTime = System.currentTimeMillis();
+          System.out.format("%d requests in %d ms (%.0f /ms)\n",
+              nextSeqNum - storedReq,
+              curTime - storedReqTime,
+              (float)((nextSeqNum - storedReq) / (curTime - storedReqTime)));
+          storedReq = nextSeqNum;
+          storedReqTime = curTime;
         }
       }
     }
