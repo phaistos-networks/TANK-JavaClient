@@ -8,8 +8,6 @@ import java.io.UnsupportedEncodingException;
 
 import java.net.Socket;
 
-import java.nio.ByteBuffer;
-
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.List;
@@ -119,7 +117,7 @@ public class TankClient {
    * then it will loop and append until payload size is reached.
    */
   private List<TankResponse> poll(short requestType, TankRequest request) throws TankException {
-    ByteManipulator input = new ByteManipulator();
+    ByteManipulator input = new ByteManipulator(null);
     int remainder = 0;
     int toRead = 0;
     while (true) {
@@ -140,21 +138,17 @@ public class TankClient {
         toRead = remainder;
       }
 
-      ByteBuffer buf = ByteBuffer.allocate(toRead);
+      byte [] ba = new byte[toRead];
       try {
-        for (int i = 0; i < toRead; i++) {
-          int byteRead = bis.read();
-          buf.put( (byte) byteRead);
-        }
-        buf.flip();
+        bis.read(ba, 0, toRead);
       } catch (IOException ioe) {
         log.log(Level.SEVERE, "Unable to read from socket", ioe);
       }
 
       if (remainder > 0) {
-        input.append(buf);
+        input.append(ba);
       } else {
-        input = new ByteManipulator(buf);
+        input = new ByteManipulator(ba);
       }
 
       byte resp = (byte)input.deSerialize(U8);
@@ -261,7 +255,7 @@ public class TankClient {
     log.fine(String.format("topics count: %d", totalTopics));
 
     for (int t = 0; t < totalTopics; t++) {
-      String topic = new String(input.getStr8().array());
+      String topic = input.getStr8();
       long totalPartitions = input.deSerialize(U8);
       log.fine("topic name: " + topic);
       log.fine("Total Partitions: " + totalPartitions);
@@ -363,7 +357,7 @@ public class TankClient {
         log.fine("Remaining Length: " + input.getRemainingLength());
         try {
           bundleLength = input.getVarInt();
-        } catch (IndexOutOfBoundsException aioobe) {
+        } catch (ArrayIndexOutOfBoundsException aioobe) {
           log.fine("Bundle length varint incomplete");
           break;
         }
@@ -416,9 +410,8 @@ public class TankClient {
           log.finer("Snappy uncompression");
           try {
             chunkMsgs = new ByteManipulator(
-                ByteBuffer.wrap(
-                    input.snappyUncompress(
-                        bundleLength - input.getOffset())));
+                input.snappyUncompress(
+                    bundleLength - input.getOffset()));
           } catch (IOException ioe) {
             log.log(Level.SEVERE, "ERROR uncompressing", ioe);
             return response;
@@ -459,22 +452,22 @@ public class TankClient {
             log.finer("Using last Timestamp : " + timestamp);
           }
 
-          ByteBuffer key = ByteBuffer.allocate(0);
+          String key = new String();
           if ((flags & HAVE_KEY) != 0) {
             key = chunkMsgs.getStr8();
-            //log.finer("We have a key and it is : " + key);
+            log.finer("We have a key and it is : " + key);
           }
 
           long contentLength = chunkMsgs.getVarInt();
           log.finer("Content Length: " + contentLength);
 
-          ByteBuffer message = chunkMsgs.getNextBytes((int)contentLength);
-          //log.finest(new String(message));
+          byte [] message = chunkMsgs.getNextBytes((int)contentLength);
+          log.finest(new String(message));
 
           // Don't save the message if it has a sequence number lower than we requested.
           if (curSeqNum >= requestedSeqNum) {
             topicPartition.addMessage(new TankMessage(
-                curSeqNum, timestamp, key, message));
+                curSeqNum, timestamp, key.getBytes(), message));
           }
           curSeqNum++;
           firstMessageNum++;
