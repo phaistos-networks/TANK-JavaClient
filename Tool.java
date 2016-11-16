@@ -19,6 +19,10 @@ class Tool {
     long id = 0;
     boolean consumate = false;
     boolean doProduce = false;
+    boolean doBench = false;
+    boolean days = false;
+    boolean hours = false;
+    boolean mins = false;
     TankRequest publish = new TankRequest(TankClient.PUBLISH_REQ);
 
     for (int i = 0 ; i < args.length; i++) {
@@ -51,11 +55,25 @@ class Tool {
             System.out.println("I'll give you 0 now and 0 when we reach Alderaan. Partition 0.");
           }
           break;
+        case "-bench":
+          doBench = true;
+          break;
         case "-get":
         case "-consume":
           consumate = true;
+          String getArg = args[++i];
+          if (getArg.substring(getArg.length() -1).equals("h")) {
+            hours = true;
+          } else if (getArg.substring(getArg.length() -1).equals("d")) {
+            days = true;
+          } else if (getArg.substring(getArg.length() -1).equals("m")) {
+            mins = true;
+          }
+          if (hours || days || mins) {
+            getArg = getArg.substring(0, getArg.length() -1);
+          }
           try {
-            id = Long.parseLong(args[++i]);
+            id = Long.parseLong(getArg);
           } catch (NumberFormatException | ArrayIndexOutOfBoundsException nfe) {
             System.out.println("I have a baad feeling about this. Commencing from sequence 0");
           }
@@ -103,22 +121,79 @@ class Tool {
     }
 
 
-    TankRequest consume = new TankRequest(TankClient.CONSUME_REQ);
-    consume.consumeTopicPartition(topic, partition, id, fetchSize);
-    List<TankResponse> response;
 
     if (consumate) {
+
+      TankRequest consume = new TankRequest(TankClient.CONSUME_REQ);
+      List<TankResponse> response;
+
+      if (hours || days || mins) {
+        long lastTs = 0L;
+        long lastSeqNum = 0L;
+
+        while (lastTs == 0L) {
+          consume.consumeTopicPartition(topic, partition, TankClient.U64_MAX, fetchSize);
+          response = tc.consume(consume);
+          if (response.size() > 0) {
+            fetchSize = response.get(0).getFetchSize();
+            lastTs = response.get(0).getMessages().get(0).getTimestamp();
+            lastSeqNum = response.get(0).getMessages().get(0).getSeqNum();
+          }
+        }
+
+        long intTs = 0L;
+        long intSeqNum = 0L;
+        if (lastSeqNum > 10000) intSeqNum = lastSeqNum - 10000;
+        else if (lastSeqNum > 1000) intSeqNum = lastSeqNum - 1000;
+        else if (lastSeqNum > 100) intSeqNum = lastSeqNum - 100;
+        else if (lastSeqNum > 10) intSeqNum = lastSeqNum - 10;
+        else {
+          System.out.println("Not enough seqnums for calculation. Check stuff");
+          System.exit(1);
+        }
+
+        while (intTs == 0L) {
+          consume.consumeTopicPartition(topic, partition, intSeqNum, fetchSize);
+          response = tc.consume(consume);
+          fetchSize = response.get(0).getFetchSize();
+
+          for (TankMessage tm: response.get(0).getMessages()) {
+            if (tm.getSeqNum() == intSeqNum) {
+              intTs = tm.getTimestamp();
+            }
+          }
+        }
+        
+        float eventsPerS = 1000 * (lastSeqNum - intSeqNum) / (lastTs - intTs);
+        System.out.println("Events / s: " + eventsPerS);
+        System.out.println("lastSeqNum: " + lastSeqNum + " intSeqNum: " + intSeqNum);
+        System.out.println("lastTs: " + lastTs + " intTs: " + intTs);
+
+        if (mins) {
+          id = lastSeqNum - (long)(id * 60 * eventsPerS);
+        } else if (hours) {
+          id = lastSeqNum - (long)(id * 3600 * eventsPerS);
+        } else {
+          id = lastSeqNum - (long)(id * 86400 * eventsPerS);
+        }
+      }
+
+      long storedReq = id;
+      long storedReqTime = System.currentTimeMillis();
+      consume.consumeTopicPartition(topic, partition, id, fetchSize);
       long nextSeqNum = 0L;
       while (true) {
         response = tc.consume(consume);
         consume = new TankRequest(TankClient.CONSUME_REQ);
         for (TankResponse tr : response) {
           //System.out.println("topic: " + tr.getTopic() + " partition: " + tr.getPartition());
-          for (TankMessage tm : tr.getMessages()) {
-            System.out.println("seq: " + tm.getSeqNum()
-                + " date: " + convertTs(tm.getTimestamp())
-                + " key: " + tm.getKeyAsString()
-                + " message: " + tm.getMessageAsString());
+          if (!doBench) {
+            for (TankMessage tm : tr.getMessages()) {
+              System.out.println("seq: " + tm.getSeqNum()
+                  + " date: " + convertTs(tm.getTimestamp())
+                  + " key: " + tm.getKeyAsString()
+                  + " message: " + tm.getMessageAsString());
+            }
           }
 
           if (tr.getFetchSize() > fetchSize) {
@@ -142,6 +217,17 @@ class Tool {
               fetchSize
           );
         }
+        if (doBench) {
+          if ((nextSeqNum - storedReq) > 10000) {
+            long curTime = System.currentTimeMillis();
+            System.out.format("%d requests in %d ms (%.0f /ms)\n", 
+                nextSeqNum - storedReq,
+                curTime - storedReqTime,
+                (float)((nextSeqNum - storedReq) / (curTime - storedReqTime)));
+            storedReq = nextSeqNum;
+            storedReqTime = curTime;
+          }
+        }
       }
     }
   }
@@ -150,5 +236,5 @@ class Tool {
     return new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(ts);
   }
 
-  private static long fetchSize = 20000L;
+  private static long fetchSize = 1000L;
 }

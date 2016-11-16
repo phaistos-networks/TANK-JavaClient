@@ -8,8 +8,6 @@ import java.io.UnsupportedEncodingException;
 
 import java.net.Socket;
 
-import java.nio.ByteBuffer;
-
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.List;
@@ -119,7 +117,7 @@ public class TankClient {
    * then it will loop and append until payload size is reached.
    */
   private List<TankResponse> poll(short requestType, TankRequest request) throws TankException {
-    ByteManipulator input = new ByteManipulator();
+    ByteManipulator input = new ByteManipulator(null);
     int remainder = 0;
     int toRead = 0;
     while (true) {
@@ -129,10 +127,10 @@ public class TankClient {
       } catch (IOException ioe) {
         log.log(Level.SEVERE, "Unable to read from socket", ioe);
       }
-      log.finest("bytes available: " + av);
       if (av == 0) {
         continue;
       }
+      log.finest("bytes available: " + av);
 
       if (remainder >= 0) {
         toRead = av;
@@ -140,21 +138,17 @@ public class TankClient {
         toRead = remainder;
       }
 
-      ByteBuffer buf = ByteBuffer.allocate(toRead);
+      byte [] ba = new byte[toRead];
       try {
-        for (int i = 0; i < toRead; i++) {
-          int byteRead = bis.read();
-          buf.put( (byte) byteRead);
-        }
-        buf.flip();
+        bis.read(ba, 0, toRead);
       } catch (IOException ioe) {
         log.log(Level.SEVERE, "Unable to read from socket", ioe);
       }
 
       if (remainder > 0) {
-        input.append(buf);
+        input.append(ba);
       } else {
-        input = new ByteManipulator(buf);
+        input = new ByteManipulator(ba);
       }
 
       byte resp = (byte)input.deSerialize(U8);
@@ -261,7 +255,7 @@ public class TankClient {
     log.fine(String.format("topics count: %d", totalTopics));
 
     for (int t = 0; t < totalTopics; t++) {
-      String topic = new String(input.getStr8().array());
+      String topic = input.getStr8();
       long totalPartitions = input.deSerialize(U8);
       log.fine("topic name: " + topic);
       log.fine("Total Partitions: " + totalPartitions);
@@ -342,6 +336,7 @@ public class TankClient {
       ArrayList<Chunk> chunkList,
       ArrayList<TankResponse> response) {
 
+    boolean incompleteBundle = false;
     for (Chunk c : chunkList) {
       long bundleLength = 0;
       long requestedSeqNum = request.getSequenceNum(c.topic, c.partition);
@@ -351,7 +346,15 @@ public class TankClient {
       TankResponse topicPartition = new TankResponse(c.topic, c.partition, c.errorOrFlags);
 
       topicPartition.setRequestSeqNum(requestedSeqNum);
-      if (c.length == 0) {
+      topicPartition.setHighWaterMark(c.highWaterMark);
+      topicPartition.setFirstAvailSeqNum(c.baseAbsSeqNum);
+
+      /*
+       * if a previous bundle was incomplete, there will not be any bytes left.
+       * So there's nothing to process. Instead just return the same values as
+       * were requested.
+       */
+      if (c.length == 0 || incompleteBundle) {
         response.add(topicPartition);
         continue;
       }
@@ -360,27 +363,34 @@ public class TankClient {
       long remainingChunkBytes = c.length;
       input.flushOffset();
       while (remainingChunkBytes > 0) {
+        if (incompleteBundle) {
+          break;
+        }
+
+        log.fine("remainingChunkBytes: " + remainingChunkBytes);
         log.fine("Remaining Length: " + input.getRemainingLength());
         try {
           bundleLength = input.getVarInt();
-        } catch (IndexOutOfBoundsException aioobe) {
+        } catch (ArrayIndexOutOfBoundsException aioobe) {
           log.fine("Bundle length varint incomplete");
+          incompleteBundle = true;
           break;
         }
         log.fine("Bundle length : " + bundleLength);
 
         if (bundleLength > topicPartition.getFetchSize()) {
-          //Add extra 5 bytes which is max 32bit varint can use up.
-          topicPartition.setFetchSize(bundleLength + 5);
+          //Add extra bytes to fit bundle headers
+          topicPartition.setFetchSize(bundleLength + 15);
         }
 
         if (bundleLength > input.getRemainingLength()) {
           log.fine("Bundle Incomplete (remaining bytes: " + input.getRemainingLength() + ")");
-          break;
+          incompleteBundle = true;
         }
 
         if (bundleLength > remainingChunkBytes) {
           log.fine("Bundle Incomplete (remaining chunk bytes: " + remainingChunkBytes + ")");
+          incompleteBundle = true;
         } else {
           remainingChunkBytes -= bundleLength;
         }
@@ -411,29 +421,34 @@ public class TankClient {
           }
         }
 
-        ByteManipulator chunkMsgs;
+        ByteManipulator bundleMsgs;
         if (compressed == 1) {
+          if (incompleteBundle) {
+            log.fine("Not uncompressing, incomplete bundle");
+            break;
+          }
           log.finer("Snappy uncompression");
           try {
-            chunkMsgs = new ByteManipulator(
-                ByteBuffer.wrap(
-                    input.snappyUncompress(
-                        bundleLength - input.getOffset())));
+            bundleMsgs = new ByteManipulator(
+                input.snappyUncompress(
+                    bundleLength - input.getOffset()));
           } catch (IOException ioe) {
             log.log(Level.SEVERE, "ERROR uncompressing", ioe);
             return response;
           }
         } else {
-          chunkMsgs = input;
+          bundleMsgs = input;
         }
+        remainingChunkBytes -= input.getOffset();
 
         long timestamp = 0L;
         long prevSeqNum = firstMessageNum;
         long curSeqNum = firstMessageNum;
+        long messageLength = 0L;
 
         for (int i = 0; i < messageCount; i++) {
-          log.finer("#### Message " + (i + 1) + " out of " + messageCount);
-          flags = (byte)chunkMsgs.deSerialize(U8);
+          log.finer("#### Bundle Message " + (i + 1) + " out of " + messageCount);
+          flags = (byte)bundleMsgs.deSerialize(U8);
           log.finer(String.format("flags : %d", flags));
 
           if (sparse == 1) {
@@ -443,7 +458,7 @@ public class TankClient {
               log.fine("SEQ_NUM_PREV_PLUS_ONE");
               curSeqNum = prevSeqNum + 1;
             } else if (i != (messageCount - 1)) {
-              curSeqNum = (chunkMsgs.getVarInt() + 1 + prevSeqNum);
+              curSeqNum = (bundleMsgs.getVarInt() + 1 + prevSeqNum);
             } else {
               curSeqNum = lastMessageNum;
             }
@@ -453,28 +468,40 @@ public class TankClient {
           log.finer("cur seq num: " + curSeqNum);
 
           if ((flags & USE_LAST_SPECIFIED_TS) == 0) {
-            timestamp = chunkMsgs.deSerialize(U64);
+            timestamp = bundleMsgs.deSerialize(U64);
             log.finer("New Timestamp : " + timestamp);
           } else {
             log.finer("Using last Timestamp : " + timestamp);
           }
 
-          ByteBuffer key = ByteBuffer.allocate(0);
+          String key = new String();
           if ((flags & HAVE_KEY) != 0) {
-            key = chunkMsgs.getStr8();
+            key = bundleMsgs.getStr8();
             //log.finer("We have a key and it is : " + key);
           }
 
-          long contentLength = chunkMsgs.getVarInt();
-          log.finer("Content Length: " + contentLength);
+          try {
+            messageLength = bundleMsgs.getVarInt();
+          } catch (IndexOutOfBoundsException ioobe) {
+            log.fine("Messag length varint incomplete");
+            incompleteBundle = true;
+            break;
+          }
 
-          ByteBuffer message = chunkMsgs.getNextBytes((int)contentLength);
-          //log.finest(new String(message));
+          log.finer("Message Length: " + messageLength);
+          if (messageLength > bundleMsgs.getRemainingLength()) {
+            log.finer("Not enough bytes left for message. Skipping.");
+            incompleteBundle = true;
+            break;
+          }
+
+          byte [] message = bundleMsgs.getNextBytes((int)messageLength);
+          log.finer("Remaining: " + bundleMsgs.getRemainingLength());
 
           // Don't save the message if it has a sequence number lower than we requested.
           if (curSeqNum >= requestedSeqNum) {
             topicPartition.addMessage(new TankMessage(
-                curSeqNum, timestamp, key, message));
+                curSeqNum, timestamp, key.getBytes(), message));
           }
           curSeqNum++;
           firstMessageNum++;
