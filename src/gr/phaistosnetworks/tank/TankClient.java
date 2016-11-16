@@ -363,6 +363,10 @@ public class TankClient {
       long remainingChunkBytes = c.length;
       input.flushOffset();
       while (remainingChunkBytes > 0) {
+        if (incompleteBundle) {
+          break;
+        }
+
         log.fine("remainingChunkBytes: " + remainingChunkBytes);
         log.fine("Remaining Length: " + input.getRemainingLength());
         try {
@@ -435,6 +439,7 @@ public class TankClient {
         } else {
           bundleMsgs = input;
         }
+        remainingChunkBytes -= input.getOffset();
 
         long timestamp = 0L;
         long prevSeqNum = firstMessageNum;
