@@ -94,7 +94,7 @@ class Tool {
             publish.publishMessage(
                 topic,
                 partition,
-                new TankMessage(key.getBytes(), args[i].getBytes()));
+                new TankMessage(key, args[i]));
           }
           break;
         default:

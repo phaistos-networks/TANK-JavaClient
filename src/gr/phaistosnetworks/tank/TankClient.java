@@ -127,10 +127,10 @@ public class TankClient {
       } catch (IOException ioe) {
         log.log(Level.SEVERE, "Unable to read from socket", ioe);
       }
-      log.finest("bytes available: " + av);
       if (av == 0) {
         continue;
       }
+      log.finest("bytes available: " + av);
 
       if (remainder >= 0) {
         toRead = av;
