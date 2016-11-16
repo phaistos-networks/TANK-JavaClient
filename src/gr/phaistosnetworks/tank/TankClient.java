@@ -345,6 +345,9 @@ public class TankClient {
       TankResponse topicPartition = new TankResponse(c.topic, c.partition, c.errorOrFlags);
 
       topicPartition.setRequestSeqNum(requestedSeqNum);
+      topicPartition.setHighWaterMark(c.highWaterMark);
+      topicPartition.setFirstAvailSeqNum(c.baseAbsSeqNum);
+
       if (c.length == 0) {
         response.add(topicPartition);
         continue;
