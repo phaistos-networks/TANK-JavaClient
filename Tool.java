@@ -190,7 +190,7 @@ class Tool {
               System.out.println("seq: " + tm.getSeqNum()
                   + " date: " + convertTs(tm.getTimestamp())
                   + " key: " + tm.getKey()
-                  + " message: " + new String(tm.getMessage()));
+                  + " message: " + tm.getMessageAsString());
             }
           }
 
