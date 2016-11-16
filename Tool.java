@@ -191,7 +191,7 @@ class Tool {
             for (TankMessage tm : tr.getMessages()) {
               System.out.println("seq: " + tm.getSeqNum()
                   + " date: " + convertTs(tm.getTimestamp())
-                  + " key: " + tm.getKey()
+                  + " key: " + tm.getKeyAsString()
                   + " message: " + tm.getMessageAsString());
             }
           }
