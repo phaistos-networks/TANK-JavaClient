@@ -22,6 +22,7 @@ class Tool {
     boolean doBench = false;
     boolean days = false;
     boolean hours = false;
+    boolean mins = false;
     TankRequest publish = new TankRequest(TankClient.PUBLISH_REQ);
 
     for (int i = 0 ; i < args.length; i++) {
@@ -65,8 +66,10 @@ class Tool {
             hours = true;
           } else if (getArg.substring(getArg.length() -1).equals("d")) {
             days = true;
+          } else if (getArg.substring(getArg.length() -1).equals("m")) {
+            mins = true;
           }
-          if (hours || days) {
+          if (hours || days || mins) {
             getArg = getArg.substring(0, getArg.length() -1);
           }
           try {
@@ -83,7 +86,6 @@ class Tool {
         case "-key":
           key = args[++i];
           break;
-          /*
         case "-put":
         case "-set":
         case "-publish":
@@ -92,10 +94,9 @@ class Tool {
             publish.publishMessage(
                 topic,
                 partition,
-                new TankMessage(key, args[i]));
+                new TankMessage(key.getBytes(), args[i].getBytes()));
           }
           break;
-          */
         default:
           continue;
       }
@@ -126,7 +127,7 @@ class Tool {
       TankRequest consume = new TankRequest(TankClient.CONSUME_REQ);
       List<TankResponse> response;
 
-      if (hours || days) {
+      if (hours || days || mins) {
         long lastTs = 0L;
         long lastSeqNum = 0L;
 
@@ -166,7 +167,9 @@ class Tool {
         System.out.println("lastSeqNum: " + lastSeqNum + " intSeqNum: " + intSeqNum);
         System.out.println("lastTs: " + lastTs + " intTs: " + intTs);
 
-        if (hours) {
+        if (mins) {
+          id = lastSeqNum - (long)(id * 60 * eventsPerS);
+        } else if (hours) {
           id = lastSeqNum - (long)(id * 3600 * eventsPerS);
         } else {
           id = lastSeqNum - (long)(id * 86400 * eventsPerS);
@@ -186,7 +189,7 @@ class Tool {
             for (TankMessage tm : tr.getMessages()) {
               System.out.println("seq: " + tm.getSeqNum()
                   + " date: " + convertTs(tm.getTimestamp())
-                  /* + " key: " + tm.getKey() */
+                  + " key: " + tm.getKey()
                   + " message: " + new String(tm.getMessage()));
             }
           }
