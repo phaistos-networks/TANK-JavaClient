@@ -134,9 +134,11 @@ class Tool {
         while (lastTs == 0L) {
           consume.consumeTopicPartition(topic, partition, TankClient.U64_MAX, fetchSize);
           response = tc.consume(consume);
-          fetchSize = response.get(0).getFetchSize();
-          lastTs = response.get(0).getMessages().get(0).getTimestamp();
-          lastSeqNum = response.get(0).getMessages().get(0).getSeqNum();
+          if (response.size() > 0) {
+            fetchSize = response.get(0).getFetchSize();
+            lastTs = response.get(0).getMessages().get(0).getTimestamp();
+            lastSeqNum = response.get(0).getMessages().get(0).getSeqNum();
+          }
         }
 
         long intTs = 0L;
