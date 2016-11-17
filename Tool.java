@@ -45,10 +45,12 @@ class Tool {
           break;
         case "-t":
         case "-topic":
+        case "--topic":
           topic = args[++i];
           break;
         case "-p":
         case "-partition":
+        case "--partition":
           try {
             partition = Integer.parseInt(args[++i]);
           } catch (NumberFormatException | ArrayIndexOutOfBoundsException nfe) {
@@ -56,10 +58,13 @@ class Tool {
           }
           break;
         case "-bench":
+        case "--bench":
           doBench = true;
           break;
         case "-get":
+        case "--get":
         case "-consume":
+        case "--consume":
           consumate = true;
           String getArg = args[++i];
           if (getArg.substring(getArg.length() -1).equals("h")) {
@@ -79,16 +84,21 @@ class Tool {
           }
           break;
         case "-tail":
+        case "--tail":
           consumate = true;
           id = TankClient.U64_MAX;
           break;
         case "-k":
         case "-key":
+        case "--key":
           key = args[++i];
           break;
         case "-put":
+        case "--put":
         case "-set":
+        case "--set":
         case "-publish":
+        case "--publish":
           doProduce = true;
           for (i++; i < args.length; i++) {
             publish.publishMessage(
@@ -98,7 +108,11 @@ class Tool {
           }
           break;
         default:
-          continue;
+          System.out.println(" Usage options:\n"
+              + "-host <hostname> -port <port> -t <topic> -p <partition>\n"
+              + "-key <messageKey> -set <message1 message2 ... messagen>\n"
+              + "-get <seqNum | timerange (30m|2d|5h)> | -tail\n");
+          System.exit(0);
       }
     }
 
