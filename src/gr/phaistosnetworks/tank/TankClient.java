@@ -468,8 +468,14 @@ public class TankClient {
           log.finer("cur seq num: " + curSeqNum);
 
           if ((flags & USE_LAST_SPECIFIED_TS) == 0) {
-            timestamp = bundleMsgs.deSerialize(U64);
-            log.finer("New Timestamp : " + timestamp);
+            try {
+              timestamp = bundleMsgs.deSerialize(U64);
+              log.finer("New Timestamp : " + timestamp);
+            } catch (IndexOutOfBoundsException ioobe) {
+              log.fine("Timestamp incomplete");
+              incompleteBundle = true;
+              break;
+            }
           } else {
             log.finer("Using last Timestamp : " + timestamp);
           }
