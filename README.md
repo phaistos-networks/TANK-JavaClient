@@ -28,7 +28,7 @@ import gr.phaistosnetworks.tank.*;
 ```java
 TankClient tc = new TankClient(host, port);
 TankRequest pubReq = new TankRequest(TankClient.PUBLISH_REQ);
-pubRec.publishMessage(
+pubReq.publishMessage(
   topic,
   partition,
   new TankMessage(
