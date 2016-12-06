@@ -120,7 +120,14 @@ public class TankClient {
     ByteManipulator input = new ByteManipulator(null);
     int remainder = 0;
     int toRead = 0;
+    long timeBefore = System.currentTimeMillis();
+    long timeNow = timeBefore;
     while (true) {
+      timeNow = System.currentTimeMillis();
+      if ((timeNow - timeBefore) > (3 * maxWait)) {
+        throw new TankException("Server did not respond in (3 * defined maxWait)");
+      }
+
       int av = 0;
       try {
         av = bis.available();
