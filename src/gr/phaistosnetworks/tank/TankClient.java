@@ -135,6 +135,11 @@ public class TankClient {
         log.log(Level.SEVERE, "Unable to read from socket", ioe);
       }
       if (av == 0) {
+        try {
+          Thread.sleep(10);
+        } catch (InterruptedException ie) {
+          log.log(Level.FINE, "Interrupted while sleeping", ie);
+        }
         continue;
       }
       log.finest("bytes available: " + av);
