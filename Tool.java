@@ -111,7 +111,7 @@ class Tool {
           System.out.println(" Usage options:\n"
               + "-host <hostname> -port <port> -t <topic> -p <partition>\n"
               + "-key <messageKey> -set <message1 message2 ... messagen>\n"
-              + "-get <seqNum | timerange (30m|2d|5h)> | -tail\n");
+              + "-get <seqNum|time (e.g. 30m|h|d)> | -tail\n");
           System.exit(0);
       }
     }
