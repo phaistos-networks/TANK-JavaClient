@@ -150,8 +150,10 @@ class Tool {
           response = tc.consume(consume);
           if (response.size() > 0) {
             fetchSize = response.get(0).getFetchSize();
-            lastTs = response.get(0).getMessages().get(0).getTimestamp();
-            lastSeqNum = response.get(0).getMessages().get(0).getSeqNum();
+            if (response.get(0).hasMessages()) {
+              lastTs = response.get(0).getMessages().get(0).getTimestamp();
+              lastSeqNum = response.get(0).getMessages().get(0).getSeqNum();
+            }
           }
         }
 
