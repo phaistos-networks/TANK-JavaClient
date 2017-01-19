@@ -6,7 +6,10 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
 
-import java.net.Socket;
+import java.net.InetSocketAddress;
+
+import java.nio.ByteBuffer;
+import java.nio.channels.SocketChannel;
 
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
@@ -44,38 +47,28 @@ public class TankClient {
     try {
       while (true) {
         try {
-          client = new Socket(tankHost, tankPort);
+          nioClient = SocketChannel.open(new InetSocketAddress(tankHost, tankPort));
         } catch (IOException ioe) {
           log.severe(ioe.getMessage());
           log.log(Level.FINEST, "ERROR opening socket", ioe);
           Thread.sleep(TankClient.RETRY_INTERVAL);
           continue;
         }
-        //client.setSoTimeout(1000);
-        client.setTcpNoDelay(true);
-        client.setKeepAlive(true);
-        client.setReuseAddress(true);
-        client.setReceiveBufferSize(1048576);
-        log.config("Connected to " + client.getRemoteSocketAddress());
-        log.config(" + recv buffer size: " + client.getReceiveBufferSize());
-        log.config(" + send buffer size: " + client.getSendBufferSize());
-        log.config(" + timeout: " + client.getSoTimeout());
-        log.config(" + soLinger: " + client.getSoLinger());
-        log.config(" + nodelay: " + client.getTcpNoDelay());
-        log.config(" + keepalive: " + client.getKeepAlive());
-        log.config(" + oobinline: " + client.getOOBInline());
-        log.config(" + reuseAddress: " + client.getReuseAddress());
 
-        bis = new BufferedInputStream(client.getInputStream());
-        socketOutputStream = client.getOutputStream();
-        break;
-      }
-      while (true) {
-        if (!getPing(bis)) {
-          log.severe("ERROR: No Ping Received");
+        ByteBuffer dst = ByteBuffer.allocate(4);
+        int pingResp = nioClient.read(dst);
+        if (pingResp != 4) {
+          log.severe("Error, invalid ping response size");
+          System.exit(1);
         } else {
-          log.fine("PING OK");
-          break;
+          byte ping = dst.get(0);
+          if (!getPing(ping)) {
+            log.severe("ERROR: No Ping Received");
+            System.exit(1);
+          } else {
+            log.fine("PING OK");
+            break;
+          }
         }
       }
     } catch (IOException | InterruptedException ioe) {
@@ -85,26 +78,13 @@ public class TankClient {
   }
 
   /**
-   * get a valid ping response from server.
+   * check if 1st byte is PING_REQ.
    * 
-   * @param bis BufferedInputStream to read from
+   * @param ping the 1st byte of server message.
    * @return true if valid ping response is received.
    */
-  private boolean getPing(BufferedInputStream bis) {
-    try {
-      int av = bis.available();
-      if (av == 0) {
-        return false;
-      }
-
-      byte readByte = (byte)bis.read();
-      if (readByte != PING_REQ) {
-        return false;
-      }
-      // payload size:u32 is 0 for ping
-      bis.skip(U32);
-    } catch (IOException ioe) {
-      log.log(Level.SEVERE, "ERROR getting ping", ioe);
+  private boolean getPing(byte ping) {
+    if (ping != PING_REQ) {
       return false;
     }
     return true;
@@ -120,47 +100,35 @@ public class TankClient {
     ByteManipulator input = new ByteManipulator(null);
     int remainder = 0;
     int toRead = 0;
+    int readBytes = 0;
     long timeBefore = System.currentTimeMillis();
     long timeNow = timeBefore;
+    ByteBuffer bb = ByteBuffer.allocate(8192);
     while (true) {
       timeNow = System.currentTimeMillis();
       if ((timeNow - timeBefore) > (3 * maxWait)) {
         throw new TankException("Server did not respond in (3 * defined maxWait)");
       }
 
-      int av = 0;
       try {
-        av = bis.available();
+        bb.clear();
+        readBytes = nioClient.read(bb);
+        bb.rewind();
+        log.fine("Read " + readBytes + " bytes from socket.");
       } catch (IOException ioe) {
         log.log(Level.SEVERE, "Unable to read from socket", ioe);
       }
-      if (av == 0) {
-        try {
-          Thread.sleep(10);
-        } catch (InterruptedException ie) {
-          log.log(Level.FINE, "Interrupted while sleeping", ie);
-        }
-        continue;
-      }
-      log.finest("bytes available: " + av);
 
-      if (remainder >= 0) {
-        toRead = av;
-      } else {
-        toRead = remainder;
-      }
-
-      byte [] ba = new byte[toRead];
-      try {
-        bis.read(ba, 0, toRead);
-      } catch (IOException ioe) {
-        log.log(Level.SEVERE, "Unable to read from socket", ioe);
-      }
 
       if (remainder > 0) {
-        input.append(ba);
+        input.append(bb, readBytes);
       } else {
-        input = new ByteManipulator(ba);
+        //Sanity check. receiving 1 byte sometimes. Need to investigate really.
+        if (readBytes < 5) {
+          continue;
+        }
+        input = new ByteManipulator(bb, readBytes);
+        readBytes = 0;
       }
 
       byte resp = (byte)input.deSerialize(U8);
@@ -231,7 +199,7 @@ public class TankClient {
     }
 
     try {
-      socketOutputStream.write(req);
+      nioClient.write(ByteBuffer.wrap(req));
     } catch (IOException ioe) {
       log.log(Level.SEVERE, "ERROR writing publish request to socket", ioe);
       System.exit(1);
@@ -568,7 +536,7 @@ public class TankClient {
     }
 
     try {
-      socketOutputStream.write(req);
+      nioClient.write(ByteBuffer.wrap(req));
     } catch (IOException ioe) {
       log.log(Level.SEVERE, "ERROR writing publish request to socket", ioe);
       System.exit(1);
@@ -691,9 +659,7 @@ public class TankClient {
   private String tankHost;
   private int tankPort;
   private int reqSeqNum;
-  private Socket client;
-  private BufferedInputStream bis;
-  private OutputStream socketOutputStream;
+  private SocketChannel nioClient;
   private Logger log;
   private int clientReqId;
   private long maxWait = 5000L;
@@ -708,7 +674,7 @@ public class TankClient {
   public static final byte HAVE_KEY = 1;
   public static final byte USE_LAST_SPECIFIED_TS = 2;
   public static final byte SEQ_NUM_PREV_PLUS_ONE = 4;
-  private static final long RETRY_INTERVAL = 10;
+  private static final long RETRY_INTERVAL = 100;
 
   public static final short PUBLISH_REQ = 1;
   public static final short CONSUME_REQ = 2;
