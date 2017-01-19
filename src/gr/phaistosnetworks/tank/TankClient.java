@@ -80,7 +80,7 @@ public class TankClient {
   /**
    * check if 1st byte is PING_REQ.
    * 
-   * @param b the 1st byte of server message.
+   * @param ping the 1st byte of server message.
    * @return true if valid ping response is received.
    */
   private boolean getPing(byte ping) {
