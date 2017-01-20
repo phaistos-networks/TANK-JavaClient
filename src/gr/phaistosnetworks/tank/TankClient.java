@@ -135,8 +135,8 @@ public class TankClient {
       long payloadSize = input.deSerialize(U32);
 
       if (resp != requestType) {
-        log.severe("Bad Response type. Expected " + requestType + ", got " + resp);
-        throw new TankException("Bad Response type. Expected " + requestType + ", got " + resp);
+        log.fine("Bad Response type. Expected " + requestType + ", got " + resp);
+        continue;
       }
 
       if (payloadSize > input.getRemainingLength()) {
