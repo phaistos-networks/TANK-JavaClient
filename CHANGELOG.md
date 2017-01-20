@@ -1,3 +1,19 @@
+## 0.5 "Ord Mantell" (2017-01-19)
+
+Features:
+
+ - Performance improvement release.
+
+## 0.3 "Coruscant" (2016-11-17)
+
+Features:
+
+ - Bug fixes release.
+
+API Changes:
+ - Key and Message are now ByteBuffers.
+ - Convenience methods available for string and byte arrays
+
 ## 0.2 "Carrick Station" (2016-09-15)
 
 Features:
