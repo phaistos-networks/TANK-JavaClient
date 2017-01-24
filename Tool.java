@@ -67,15 +67,15 @@ class Tool {
         case "--consume":
           consumate = true;
           String getArg = args[++i];
-          if (getArg.substring(getArg.length() -1).equals("h")) {
+          if (getArg.substring(getArg.length() - 1).equals("h")) {
             hours = true;
-          } else if (getArg.substring(getArg.length() -1).equals("d")) {
+          } else if (getArg.substring(getArg.length() - 1).equals("d")) {
             days = true;
-          } else if (getArg.substring(getArg.length() -1).equals("m")) {
+          } else if (getArg.substring(getArg.length() - 1).equals("m")) {
             mins = true;
           }
           if (hours || days || mins) {
-            getArg = getArg.substring(0, getArg.length() -1);
+            getArg = getArg.substring(0, getArg.length() - 1);
           }
           try {
             id = Long.parseLong(getArg);
@@ -140,6 +140,7 @@ class Tool {
 
       TankRequest consume = new TankRequest(TankClient.CONSUME_REQ);
       List<TankResponse> response;
+      TankResponse tr0;
 
       if (hours || days || mins) {
         long lastTs = 0L;
@@ -149,10 +150,11 @@ class Tool {
           consume.consumeTopicPartition(topic, partition, TankClient.U64_MAX, fetchSize);
           response = tc.consume(consume);
           if (response.size() > 0) {
-            fetchSize = response.get(0).getFetchSize();
-            if (response.get(0).hasMessages()) {
-              lastTs = response.get(0).getMessages().get(0).getTimestamp();
-              lastSeqNum = response.get(0).getMessages().get(0).getSeqNum();
+            tr0 = response.get(0);
+            fetchSize = tr0.getFetchSize();
+            if (tr0.hasMessages()) {
+              lastTs = tr0.getMessages().get(0).getTimestamp();
+              lastSeqNum = tr0.getMessages().get(0).getSeqNum();
             }
           }
         }
