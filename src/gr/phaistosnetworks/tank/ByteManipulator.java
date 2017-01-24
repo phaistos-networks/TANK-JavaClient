@@ -349,6 +349,16 @@ public class ByteManipulator {
     offset = 0;
   }
 
+  /**
+   * prints all bytes in current byte array.
+   */
+  public void printBytes() {
+    offset = 0;
+    for (int i = 0 ; i < input.length ; i++) {
+      System.out.format("%d ", input[i]);
+    }
+  }
+
   private byte [] input;
   private int offset;
   private static final byte VARINT_BYTE_SHIFT_ONE = 7;
