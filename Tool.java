@@ -20,6 +20,7 @@ class Tool {
     boolean consumate = false;
     boolean doProduce = false;
     boolean doBench = false;
+    boolean doReport = false;
     boolean days = false;
     boolean hours = false;
     boolean mins = false;
@@ -107,6 +108,9 @@ class Tool {
                 new TankMessage(key, args[i]));
           }
           break;
+        case "--report":
+          doReport = true;
+          break;
         default:
           System.out.println(" Usage options:\n"
               + "-host <hostname> -port <port> -t <topic> -p <partition>\n"
@@ -134,6 +138,17 @@ class Tool {
       }
     }
 
+
+    if (doReport) {
+      TankRequest consume = new TankRequest(TankClient.CONSUME_REQ);
+      consume.consumeTopicPartition(topic, partition, id, fetchSize);
+      List<TankResponse> response = tc.consume(consume);
+
+      for (TankResponse tr : response) {
+        System.out.println("topic: " + tr.getTopic() + " partition: " + tr.getPartition());
+        System.out.println("HighWaterMark: " + tr.getHighWaterMark());
+      }
+    }
 
 
     if (consumate) {
