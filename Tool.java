@@ -112,6 +112,7 @@ class Tool {
         case "-report":
         case "--report":
           doReport = true;
+          id = TankClient.U64_MAX;
           break;
         case "-exit":
         case "--exit":
