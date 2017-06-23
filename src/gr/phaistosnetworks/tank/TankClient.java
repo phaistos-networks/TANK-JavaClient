@@ -135,7 +135,7 @@ public class TankClient {
       long payloadSize = input.deSerialize(U32);
 
       if (resp != requestType) {
-        log.fine("Bad Response type. Expected " + requestType + ", got " + resp);
+        log.info("Bad Response type. Expected " + requestType + ", got " + resp);
         continue;
       }
 
@@ -171,6 +171,9 @@ public class TankClient {
   public List<TankResponse> consume(TankRequest request) throws TankException {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     log.fine("Issuing consume with " + request.getTopicsCount() + " topics");
+    if (request.getTopicsCount() == 0) {
+      return new ArrayList<TankResponse>();
+    }
 
     try {
       baos.write((byte)CONSUME_REQ);
