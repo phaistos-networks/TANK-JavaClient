@@ -21,6 +21,7 @@ class Tool {
     boolean doProduce = false;
     boolean doBench = false;
     boolean doReport = false;
+    boolean doExit = false;
     boolean days = false;
     boolean hours = false;
     boolean mins = false;
@@ -108,14 +109,22 @@ class Tool {
                 new TankMessage(key, args[i]));
           }
           break;
+        case "-report":
         case "--report":
           doReport = true;
+          break;
+        case "-exit":
+        case "--exit":
+          doExit = true;
           break;
         default:
           System.out.println(" Usage options:\n"
               + "-host <hostname> -port <port> -t <topic> -p <partition>\n"
               + "-key <messageKey> -set <message1 message2 ... messagen>\n"
-              + "-get <seqNum|time (e.g. 30m|h|d)> | -tail\n");
+              + "-get <seqNum|time (e.g. 30m|h|d)> | -tail\n"
+              + "-exit (to exit when reaching HighWaterMark)\n"
+              + "-report (reports HighWaterMark)\n"
+              );
           System.exit(0);
       }
     }
@@ -218,8 +227,14 @@ class Tool {
       while (true) {
         response = tc.consume(consume);
         consume = new TankRequest(TankClient.CONSUME_REQ);
+
+        // Exit if response is empty.
+        if (response.size() == 0 ) {
+          break;
+        }
+
         for (TankResponse tr : response) {
-          //System.out.println("topic: " + tr.getTopic() + " partition: " + tr.getPartition());
+          // System.out.println("topic: " + tr.getTopic() + " partition: " + tr.getPartition());
           if (!doBench) {
             for (TankMessage tm : tr.getMessages()) {
               System.out.println("seq: " + tm.getSeqNum()
@@ -241,6 +256,11 @@ class Tool {
             }
           } else {
             nextSeqNum = tr.getNextSeqNum();
+          }
+
+          // Don't add new consume request if asked to exit
+          if (doExit && nextSeqNum >= tr.getHighWaterMark()) {
+            continue;
           }
 
           consume.consumeTopicPartition(
