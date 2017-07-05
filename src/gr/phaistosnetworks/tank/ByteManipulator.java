@@ -345,7 +345,7 @@ public class ByteManipulator {
   }
 
   /**
-   * Marks the current offset position
+   * Marks the current offset position.
    */
   public void markOffset() {
     offsetMark = offset;
