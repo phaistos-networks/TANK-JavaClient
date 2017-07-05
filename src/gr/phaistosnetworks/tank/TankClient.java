@@ -123,8 +123,9 @@ public class TankClient {
       if (remainder > 0) {
         input.append(bb, readBytes);
       } else {
-        //Sanity check. receiving 1 byte sometimes. Need to investigate really.
+        // Sanity check. receiving 1 byte with value 0 sometimes.
         if (readBytes < 5) {
+          log.fine("Received just 1 byte, skipping");
           continue;
         }
         input = new ByteManipulator(bb, readBytes);
@@ -132,12 +133,17 @@ public class TankClient {
       }
 
       byte resp = (byte)input.deSerialize(U8);
-      long payloadSize = input.deSerialize(U32);
-
-      if (resp != requestType) {
+      // TODO: figure this out and avoid this hack. At least now it won't hang.
+      while (resp != requestType) {
         log.fine("Bad Response type. Expected " + requestType + ", got " + resp);
+        resp = (byte)input.deSerialize(U8);
         continue;
       }
+
+      long payloadSize = input.deSerialize(U32);
+
+      log.fine("resp: " + resp);
+      log.fine("payload size: " + payloadSize);
 
       if (payloadSize > input.getRemainingLength()) {
         log.finer("Received packet incomplete ");
@@ -147,9 +153,6 @@ public class TankClient {
       } else {
         remainder = 0;
       }
-
-      log.fine("resp: " + resp);
-      log.fine("payload size: " + payloadSize);
 
       if (requestType == CONSUME_REQ) {
         return processConsumeResponse(input, request);
@@ -344,7 +347,6 @@ public class TankClient {
 
       long firstMessageNum = c.baseAbsSeqNum;
       long remainingChunkBytes = c.length;
-      input.flushOffset();
       while (remainingChunkBytes > 0) {
         if (incompleteBundle) {
           break;
@@ -378,8 +380,8 @@ public class TankClient {
           remainingChunkBytes -= bundleLength;
         }
 
-        remainingChunkBytes -= input.getOffset();
-        input.flushOffset();
+        remainingChunkBytes -= input.getMarkedOffset();
+        input.markOffset();
 
         byte flags = (byte)input.deSerialize(U8);
         // See TANK tank_encoding.md for flags
@@ -414,7 +416,7 @@ public class TankClient {
           try {
             bundleMsgs = new ByteManipulator(
                 input.snappyUncompress(
-                    bundleLength - input.getOffset()));
+                    bundleLength - input.getMarkedOffset()));
           } catch (IOException ioe) {
             log.log(Level.SEVERE, "ERROR uncompressing", ioe);
             return response;
@@ -422,7 +424,7 @@ public class TankClient {
         } else {
           bundleMsgs = input;
         }
-        remainingChunkBytes -= input.getOffset();
+        remainingChunkBytes -= input.getMarkedOffset();
 
         long timestamp = 0L;
         long prevSeqNum = firstMessageNum;
