@@ -326,7 +326,9 @@ public class ByteManipulator {
   /**
    * Flushes processed bytes from byte array.
    */
+  @Deprecated
   public void flushOffset() {
+    offsetMark = offset;
     byte [] newInput = new byte[getRemainingLength()];
     for (int i = 0; i < getRemainingLength(); i++) {
       newInput[i] = input[offset + i];
@@ -343,10 +345,25 @@ public class ByteManipulator {
   }
 
   /**
+   * Marks the current offset position
+   */
+  public void markOffset() {
+    offsetMark = offset;
+  }
+
+  /**
+   * Returns the current count of processed bytes since the Mark.
+   */
+  public int getMarkedOffset() {
+    return offset - offsetMark;
+  }
+
+  /**
    * Resets current processed byte counter.
    */
   public void resetOffset() {
     offset = 0;
+    offsetMark = 0;
   }
 
   /**
@@ -361,6 +378,7 @@ public class ByteManipulator {
 
   private byte [] input;
   private int offset;
+  private int offsetMark;
   private static final byte VARINT_BYTE_SHIFT_ONE = 7;
   private static final byte VARINT_BYTE_SHIFT_TWO = 14;
   private static final byte VARINT_BYTE_SHIFT_THREE = 21;
