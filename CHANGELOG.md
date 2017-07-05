@@ -1,3 +1,10 @@
+## 0.6 "Taris" (2017-07-05)
+
+Features:
+
+ - Performance improvement (~10% for reads)
+ - Issue fixes
+
 ## 0.5 "Ord Mantell" (2017-01-19)
 
 Features:
